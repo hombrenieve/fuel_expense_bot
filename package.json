@@ -1,0 +1,14 @@
+{
+    "name": "fuel_expense_bot",
+    "version": "0.1.0",
+    "description": "A simple telegram bot to store the fuel expenses and control the limit",
+    "main": "src/bot.js",
+    "engines": {
+        "node": ">= 12.0.0"
+    },
+    "dependencies": {
+        "mariadb": "^3.0.0",
+        "telebot": "^1.4.1"
+    },
+    "author": "Hombrenieve <hombrenieve@gmail.com>"
+}
