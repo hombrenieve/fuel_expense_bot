@@ -6,10 +6,14 @@ const bot = new TeleBot(config.api);
 
 const data = new Db.Db();
 
-bot.on('/reset', (msg) => {
+bot.on(['/reset', '/start'], (msg) => {
     data.reset(msg.from.username)
     .then(() => sendData(msg))
     .catch(err => console.log("Error resetting", err));
+});
+
+bot.on('/check', (msg) => {
+    sendData(msg);
 });
 
 bot.on(/\d+\.*\d*/, (msg) => {

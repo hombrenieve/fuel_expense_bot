@@ -1,6 +1,6 @@
 # Fuel expense bot
 
-A simple telegram bot to reord the expenses in fuel per month and know the information of what is left
+A simple telegram bot to record the expenses in fuel per month and know the information of what is left
 
 ## Getting started
 
