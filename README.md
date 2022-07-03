@@ -23,7 +23,8 @@ const config = {
         //TeleBot configuration as in the call to new TeleBot(...)
     },
     app: {
-        fuelExpenseLimit: 100.00 //The limit to apply
+        fuelExpenseLimit: 100.00, //The limit to apply
+        pingInterval: 60000 //Interval to ping the db server (milliseconds)
     }
 };
 module.exports = config;

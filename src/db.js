@@ -19,7 +19,7 @@ class Db {
     checkConnection() {
         if(this.conn) {
             this.conn.ping()
-                .then(() => setTimeout(this.checkConnection, 60000))
+                .then(() => setTimeout(this.checkConnection, config.app.pingInterval))
                 .catch(err => {
                     console.log("DB connection lost:", err);
                     this.loadConnection();
