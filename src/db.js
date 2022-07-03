@@ -3,13 +3,28 @@ const mariadb = require('mariadb');
 
 class Db {
     constructor() {
-        this.data = [];
+        this.loadConnection();    
+    }
+
+    loadConnection() {
         mariadb.createConnection(config.db)
-                .then(conn => {
-                    console.log("DB Connection established!");
-                    this.conn = conn;
+            .then(conn => {
+                console.log("DB Connection established!");
+                this.conn = conn;
+                this.checkConnection();
+            })
+            .catch(err => console.log("Connecting to db:", err));
+    }
+
+    checkConnection() {
+        if(this.conn) {
+            this.conn.ping()
+                .then(() => setTimeout(this.checkConnection, 60000))
+                .catch(err => {
+                    console.log("DB connection lost:", err);
+                    this.loadConnection();
                 })
-                .catch(err => console.log("Connecting to db:", err));
+        }
     }
     
     async getAmount(user) {

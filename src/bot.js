@@ -39,7 +39,8 @@ function sendData(msg) {
                 "Spent: " + rounded.toString() + "\n" +
                 "Left: " + round(data.getLimit() - num, 2)
             );
-        });
+        })
+        .catch(err => console.log("Error getting amount", err));
 }
 
 process.on('SIGINT', function() {
