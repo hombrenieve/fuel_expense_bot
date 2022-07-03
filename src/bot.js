@@ -20,7 +20,7 @@ bot.on(/\d+\.*\d*/, (msg) => {
     data.addAmount(msg.from.username, parseFloat(msg.text))
         .then(added => {
             if (added == -1) {
-                bot.sendMessage(msg.chat.id, "Expense exceeds limit of " + data.getLimit().toString() + "!");
+                bot.sendMessage(msg.chat.id, "Expense exceeds limit!");
             }
             sendData(msg);
         })
@@ -35,9 +35,11 @@ function sendData(msg) {
     data.getAmount(msg.from.username)
         .then(num => {
             var rounded = round(num, 2);
-            bot.sendMessage(msg.chat.id, 
-                "Spent: " + rounded.toString() + "\n" +
-                "Left: " + round(data.getLimit() - num, 2)
+            data.getLimit(msg.from.username)
+            .then(limit =>
+                bot.sendMessage(msg.chat.id,
+                    "Spent: " + rounded.toString() + "\n" +
+                    "Left: " + round(limit - num, 2))
             );
         })
         .catch(err => console.log("Error getting amount", err));

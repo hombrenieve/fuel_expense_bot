@@ -19,7 +19,7 @@ class Db {
     checkConnection() {
         if(this.conn) {
             this.conn.ping()
-                .then(() => setTimeout(this.checkConnection, config.app.pingInterval))
+                .then(() => this.check = setTimeout(this.checkConnection, config.app.pingInterval))
                 .catch(err => {
                     console.log("DB connection lost:", err);
                     this.loadConnection();
@@ -36,14 +36,15 @@ class Db {
         return num;
     }
 
-    getLimit(user) {
-        return config.app.fuelExpenseLimit;
+    async getLimit(user) {
+        const rows = await this.conn.query("SELECT payLimit FROM counts WHERE username = ?", [user]);
+        return rows[0]['payLimit'];
     }
 
     async addAmount(user, amount) {
         const current = await this.getAmount(user);
         if(current >= 0) {
-            if(current + amount > config.app.fuelExpenseLimit) {
+            if(current + amount > await this.getLimit(user)) {
                 return -1;
             }
             await this.conn.query("UPDATE counts SET paid = ? WHERE username = ?", [current + amount, user]);
