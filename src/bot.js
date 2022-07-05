@@ -30,7 +30,7 @@ bot.on(/^\d+\.*\d*$/, (msg) => {
 bot.on(/^\/config (.+)$/, (msg, props) => {
     const propsText = props.match[1].split(' ');
     if(propsText[0] == 'limit') {
-        console.log("Configuring limit to: "+propsText[1]);
+        console.log("Configuring limit for "+msg.from.username+" to: "+propsText[1]);
         data.setLimit(msg.from.username, parseFloat(propsText[1]))
             .then(() => sendData(msg))
             .catch(err => console.log("Error configuring limit for "+msg.from.username+" "+err));
