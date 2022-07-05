@@ -16,7 +16,7 @@ bot.on('/check', (msg) => {
     sendData(msg);
 });
 
-bot.on(/\d+\.*\d*/, (msg) => {
+bot.on(/^\d+\.*\d*$/, (msg) => {
     data.addAmount(msg.from.username, parseFloat(msg.text))
         .then(added => {
             if (added == -1) {
@@ -25,6 +25,18 @@ bot.on(/\d+\.*\d*/, (msg) => {
             sendData(msg);
         })
         .catch(err => console.log("Error adding amount", err));
+});
+
+bot.on(/^\/config (.+)$/, (msg, props) => {
+    const propsText = props.match[1].split(' ');
+    if(propsText[0] == 'limit') {
+        console.log("Configuring limit to: "+propsText[1]);
+        data.setLimit(msg.from.username, parseFloat(propsText[1]))
+            .then(() => sendData(msg))
+            .catch(err => console.log("Error configuring limit for "+msg.from.username+" "+err));
+    } else {
+        console.log("Unknown config: "+ propsText[0]);
+    }
 });
 
 function round(value, decimals) {

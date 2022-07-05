@@ -41,6 +41,10 @@ class Db {
         return rows[0]['payLimit'];
     }
 
+    setLimit(user, newLimit) {
+        return this.conn.query("UPDATE counts SET payLimit = ? WHERE username = ?", [newLimit, user]);
+    }
+
     async addAmount(user, amount) {
         const current = await this.getAmount(user);
         if(current >= 0) {
