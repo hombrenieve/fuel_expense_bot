@@ -1,0 +1,33 @@
+version: "3"
+services:
+  db:
+    image: "mariadb:latest"
+    container_name: "feb-db"
+    ports:
+      - "3306:3306"
+    environment:
+      - MARIADB_USER=example-user
+      - MARIADB_PASSWORD=my_cool_secret
+      - MARIADB_ROOT_PASSWORD=my-secret-pw
+      - MARIADB_DATABASE=some-mariadb
+    networks:
+      - docker-service
+    volumes:
+      - db-volume:/var/lib/mysql
+      - ./scripts:/docker-entrypoint-initdb.d
+  
+  bot:
+    build: .
+    container_name: "feb-bot"
+    ports:
+      - "8443:8443"
+    networks:
+      - docker-service
+    depends_on:
+      - db
+
+volumes:
+  db-volume:
+
+networks:
+  docker-service:
