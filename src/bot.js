@@ -6,7 +6,13 @@ const bot = new TeleBot(config.api);
 
 const data = new Db.Db();
 
-bot.on(['/reset', '/start'], (msg) => {
+bot.on('/start', (msg) => {
+    data.start(msg.from.username)
+    .then(() => sendData(msg))
+    .catch(err => console.log("Error starting", err));
+});
+
+bot.on('/reset', (msg) => {
     data.reset(msg.from.username)
     .then(() => sendData(msg))
     .catch(err => console.log("Error resetting", err));

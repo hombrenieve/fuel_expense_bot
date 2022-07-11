@@ -26,14 +26,14 @@ class Db {
                 })
         }
     }
+
+    start(user) {
+        return this.conn.query("INSERT INTO counts(username, paid) VALUES (?, ?)", [user, 0]);
+    }
     
     async getAmount(user) {
-        var num = -1;
         const rows = await this.conn.query("SELECT paid FROM counts WHERE username = ?", [user]);
-        if(rows.length == 1) {
-            num = rows[0]['paid'];
-        }
-        return num;
+        return rows[0]['paid'];
     }
 
     async getLimit(user) {
@@ -47,16 +47,11 @@ class Db {
 
     async addAmount(user, amount) {
         const current = await this.getAmount(user);
-        if(current >= 0) {
-            if(current + amount > await this.getLimit(user)) {
-                return -1;
-            }
-            await this.conn.query("UPDATE counts SET paid = ? WHERE username = ?", [current + amount, user]);
-            return current + amount;
-        } else {
-            await this.conn.query("INSERT INTO counts VALUES (?, ?)", [user, amount]);
-            return amount;
+        if(current + amount > await this.getLimit(user)) {
+            return -1;
         }
+        await this.conn.query("UPDATE counts SET paid = ? WHERE username = ?", [current + amount, user]);
+        return current + amount;
     }
 
     reset(user) {
@@ -65,6 +60,7 @@ class Db {
 
     close() {
         console.log("Closing DB Connection");
+        clearTimeout(this.check);
         this.conn.end()
         .then(() => console.log("DB Connection succesfully closed!"))
         .catch(err => console.log("Error closing DB connection:", err));
