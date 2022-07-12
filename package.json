@@ -8,7 +8,8 @@
     },
     "dependencies": {
         "mariadb": "^3.0.0",
-        "telebot": "^1.4.1"
+        "telebot": "^1.4.1",
+        "log-timestamp": "^0.3.0"
     },
     "author": "Hombrenieve <hombrenieve@gmail.com>"
 }

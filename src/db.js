@@ -1,5 +1,6 @@
 const config = require("./config.js");
 const mariadb = require('mariadb');
+require('log-timestamp');
 
 class Db {
     constructor() {
@@ -13,17 +14,27 @@ class Db {
                 this.conn = conn;
                 this.checkConnection();
             })
-            .catch(err => console.log("Connecting to db:", err));
+            .catch(err => {
+                console.log("DB Connection error:", err);
+                var that = this;
+                this.check = setTimeout(function() { that.checkConnection() }, config.app.pingInterval);
+            });
     }
 
     checkConnection() {
         if(this.conn) {
             this.conn.ping()
-                .then(() => this.check = setTimeout(this.checkConnection, config.app.pingInterval))
+                .then(() => {
+                    var that = this;
+                    this.check = setTimeout(function() { that.checkConnection() }, config.app.pingInterval);
+                })
                 .catch(err => {
                     console.log("DB connection lost:", err);
                     this.loadConnection();
                 })
+        } else {
+            console.log("DB connection not available");
+            this.loadConnection();
         }
     }
 
@@ -59,11 +70,11 @@ class Db {
     }
 
     close() {
-        console.log("Closing DB Connection");
+        console.log("DB connection is closing...");
         clearTimeout(this.check);
         this.conn.end()
         .then(() => console.log("DB Connection succesfully closed!"))
-        .catch(err => console.log("Error closing DB connection:", err));
+        .catch(err => console.log("DB connection error closing:", err));
     }
 }
 
