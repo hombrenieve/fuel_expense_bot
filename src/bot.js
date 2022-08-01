@@ -7,7 +7,7 @@ const bot = new TeleBot(config.api);
 const data = new Db.Db();
 
 bot.on('/start', (msg) => {
-    data.start(msg.from.username)
+    data.start(msg.from.username, msg.chat.id)
     .then(() => sendData(msg))
     .catch(err => console.log("Error starting", err));
 });

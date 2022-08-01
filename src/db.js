@@ -38,8 +38,8 @@ class Db {
         }
     }
 
-    start(user) {
-        return this.conn.query("INSERT INTO counts(username, paid) VALUES (?, ?)", [user, 0]);
+    start(user, id) {
+        return this.conn.query("INSERT INTO counts(username, chatId, paid) VALUES (?, ?, ?)", [user, id, 0]);
     }
     
     async getAmount(user) {
