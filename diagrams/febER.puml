@@ -1,0 +1,16 @@
+@startuml
+
+entity config {
+    * username: text
+    --
+    * chatId: number
+    * limit: number
+}
+
+entity counts {
+    * transactionDate: date
+    * quantity: number
+}
+
+config ||--o{ counts
+@enduml
