@@ -12,18 +12,12 @@ bot.on('/start', (msg) => {
     .catch(err => console.log("Error starting", err));
 });
 
-bot.on('/reset', (msg) => {
-    data.reset(msg.from.username)
-    .then(() => sendData(msg))
-    .catch(err => console.log("Error resetting", err));
-});
-
 bot.on('/check', (msg) => {
     sendData(msg);
 });
 
 bot.on(/^\d+\.*\d*$/, (msg) => {
-    data.addAmount(msg.from.username, parseFloat(msg.text))
+    data.addAmount(msg.from.username, new Date(), parseFloat(msg.text))
         .then(added => {
             if (added == -1) {
                 bot.sendMessage(msg.chat.id, "Expense exceeds limit!");
@@ -50,15 +44,12 @@ function round(value, decimals) {
 }
 
 function sendData(msg) {
-    data.getAmount(msg.from.username)
-        .then(num => {
-            var rounded = round(num, 2);
-            data.getLimit(msg.from.username)
-            .then(limit =>
-                bot.sendMessage(msg.chat.id,
-                    "Spent: " + rounded.toString() + "\n" +
-                    "Left: " + round(limit - num, 2))
-            );
+    data.getAmount(msg.from.username, new Date())
+        .then(res => {
+            var rounded = round(res[0], 2);
+            bot.sendMessage(msg.chat.id,
+                "Spent: " + rounded.toString() + "\n" +
+                "Left: " + round(res[1] - res[0], 2))
         })
         .catch(err => console.log("Error getting amount", err));
 }
