@@ -32,7 +32,7 @@ module.exports = config;
 
 ## DB Architecture
 
-![ER Model for DB](http://www.plantuml.com/plantuml/proxy?cache=no&src=[https://github.com/hombrenieve/fuel_expense_bot/raw/db_architecture_changed/diagrams/febER.puml](https://raw.githubusercontent.com/hombrenieve/fuel_expense_bot/main/diagrams/febER.puml))
+![ER Model for DB](http://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/hombrenieve/fuel_expense_bot/main/diagrams/febER.puml)
 
 The database stores each fuel operation as a new entry in the `counts` table. The primary key is the transaction date so two fuel operations in the same date are not allowed (TODO: Allow more than one operation per date).
 The resulting value of the getAmount operation will be the sum of all operations within the month (TODO: check different months or even different periods).
