@@ -12,29 +12,12 @@ function fmtMonth(date) {
     return [year, month, '00'].join('-');
 }
 
-function fmtDate(date) {
-    var month = '' + (date.getMonth() + 1),
-        day = '' + date.getDate(),
-        year = date.getFullYear();
-
-    if (month.length < 2) 
-        month = '0' + month;
-    if(day.length < 2)
-        day = '0' + day;
-    
-
-    return [year, month, day].join('-');
-}
-
 function nextMonth(d) {
     if(!d) {
         d = new Date();
     }
-    return new Date(d.setMonth(d.getMonth() + 1));
-}
-
-function currentMonth() {
-    return new Date();
+    var nmd = new Date(d);
+    return new Date(nmd.setMonth(nmd.getMonth() + 1));
 }
 
 class Db {
@@ -78,18 +61,15 @@ class Db {
     }
     
     async getAmount(user, date) {
-    console.log("Data: ", [user, user, fmtMonth(date), fmtMonth(nextMonth(date))]);
-        const rows = await this.conn.query("SELECT config.payLimit AS payLimit, sum(counts.quantity) AS monthlyTotal \
-                    FROM config,counts \
-                    WHERE config.username = ?\
-                        AND counts.username = ?\
-                        AND txDate > ? \
-                        AND txDate < ?",
-                    [user, user, fmtMonth(date), fmtMonth(nextMonth(date))]);
-    console.log(rows);
-        var current = rows[0]['monthlyTotal'];
-        if (!current) current = 0;
-        return [current, rows[0]['payLimit']];
+        const curM = fmtMonth(date), nextM = fmtMonth(nextMonth(date));
+        return this.conn.query(
+            "SELECT config.payLimit AS payLimit, sum(counts.quantity) AS monthlyTotal \
+            FROM config,counts \
+            WHERE config.username = ?\
+                AND counts.username = ?\
+                AND counts.txDate > ?\
+                AND counts.txDate < ?",
+        [user, user, curM, nextM]);
     }
 
     async getLimit(user) {
@@ -102,14 +82,12 @@ class Db {
     }
 
     async addAmount(user, date, amount) { //TODO: Needs transaction
-    console.log("Adding amount ", user, " ", date, " ", amount);
-        const [current, limit] = await this.getAmount(user, date);
-    console.log("Current ", current, " amount: ", amount)
-        if (current + amount > limit) {
+        const [res,] = await this.getAmount(user, date);
+        if (res.monthlyTotal + amount > res.payLimit) {
             return -1;
         }
-        await this.conn.query("INSERT INTO counts VALUES (?, ?, ?)", [fmtDate(date), user, amount]);
-        return current + amount;
+        await this.conn.query("INSERT INTO counts VALUES (?, ?, ?)", [date, user, amount]);
+        return res.monthlyTotal + amount;
     }
 
     close() {
