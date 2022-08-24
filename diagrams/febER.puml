@@ -8,7 +8,7 @@ entity config {
 }
 
 entity counts {
-    * transactionDate: date
+    * txDate: date
     * quantity: number
 }
 
