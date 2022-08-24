@@ -46,10 +46,10 @@ function round(value, decimals) {
 function sendData(msg) {
     data.getAmount(msg.from.username, new Date())
         .then(res => {
-            var rounded = round(res[0], 2);
+            var rounded = round(res[0].monthlyTotal, 2);
             bot.sendMessage(msg.chat.id,
                 "Spent: " + rounded.toString() + "\n" +
-                "Left: " + round(res[1] - res[0], 2))
+                "Left: " + round(res[0].payLimit - res[0].monthlyTotal, 2))
         })
         .catch(err => console.log("Error getting amount", err));
 }
