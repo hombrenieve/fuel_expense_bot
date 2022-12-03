@@ -5,9 +5,10 @@ create table config (
 );
 
 create table counts (
+	id MEDIUMINT NOT NULL AUTO_INCREMENT,
 	txDate DATE NOT NULL,
 	username VARCHAR(32),
 	quantity DOUBLE,
-	PRIMARY KEY(txDate, username),
+	PRIMARY KEY(id),
 	FOREIGN KEY(username) REFERENCES config(username)
 );

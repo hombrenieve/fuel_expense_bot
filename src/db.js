@@ -86,7 +86,7 @@ class Db {
         if (res.monthlyTotal + amount > res.payLimit) {
             return -1;
         }
-        await this.conn.query("INSERT INTO counts VALUES (?, ?, ?)", [date, user, amount]);
+        await this.conn.query("INSERT INTO counts(txDate, username, quantity) VALUES (?, ?, ?)", [date, user, amount]);
         return res.monthlyTotal + amount;
     }
 
