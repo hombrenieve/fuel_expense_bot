@@ -63,7 +63,8 @@ class Db {
     async getAmount(user, date) {
         const curM = fmtMonth(date), nextM = fmtMonth(nextMonth(date));
         return this.conn.query(
-            "SELECT config.payLimit AS payLimit, sum(counts.quantity) AS monthlyTotal \
+            "SELECT config.payLimit AS payLimit,\
+            IFNULL(sum(counts.quantity), 0) AS monthlyTotal \
             FROM config,counts \
             WHERE config.username = ?\
                 AND counts.username = ?\
