@@ -1,22 +1,16 @@
 const fs = require('fs').promises;
 const path = require('path');
-const process = require('process');
+const { google } = require("googleapis");
 const {authenticate} = require('@google-cloud/local-auth');
-const {google} = require('googleapis');
+const { program } = require("commander");
+const { promisify } = require("util");
+const { readFile } = require("fs");
+const spreadsheetId = "1O9ycQZau4Hy80BXmZQGKmf5CB5fqzRqB3IgHHV1wGgQ";
 
-// If modifying these scopes, delete token.json.
-const SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly'];
-// The file token.json stores the user's access and refresh tokens, and is
-// created automatically when the authorization flow completes for the first
-// time.
+const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 const TOKEN_PATH = path.join(process.cwd(), 'token.json');
 const CREDENTIALS_PATH = path.join(process.cwd(), 'credentials.json');
 
-/**
- * Reads previously authorized credentials from the save file.
- *
- * @return {Promise<OAuth2Client|null>}
- */
 async function loadSavedCredentialsIfExist() {
   try {
     const content = await fs.readFile(TOKEN_PATH);
@@ -27,12 +21,6 @@ async function loadSavedCredentialsIfExist() {
   }
 }
 
-/**
- * Serializes credentials to a file comptible with GoogleAUth.fromJSON.
- *
- * @param {OAuth2Client} client
- * @return {Promise<void>}
- */
 async function saveCredentials(client) {
   const content = await fs.readFile(CREDENTIALS_PATH);
   const keys = JSON.parse(content);
@@ -46,10 +34,6 @@ async function saveCredentials(client) {
   await fs.writeFile(TOKEN_PATH, payload);
 }
 
-/**
- * Load or request or authorization to call APIs.
- *
- */
 async function authorize() {
   let client = await loadSavedCredentialsIfExist();
   if (client) {
@@ -65,36 +49,36 @@ async function authorize() {
   return client;
 }
 
-function getMonthName(monthNumber) {
-  const date = new Date();
-  date.setMonth(monthNumber - 1);
-
-  return date.toLocaleString('en-US', { month: 'long' });
+async function appendValues(auth, values) {
+  const sheets = google.sheets({ version: "v4", auth });
+  const request = {
+    spreadsheetId,
+    range: "2023!A:B",
+    valueInputOption: "USER_ENTERED",
+    resource: {
+      values: [values],
+    },
+    insertDataOption: "INSERT_ROWS",
+  };
+  await sheets.spreadsheets.values.append(request);
 }
 
+async function run() {
+  program
+    .option("-d, --date <date>", "Date to append in YYYY-MM-DD format")
+    .option("-a, --amount <amount>", "Amount to append")
+    .parse(process.argv);
 
-/**
- * Print the totals by month
- * @param {google.auth.OAuth2} auth The authenticated Google OAuth client.
- */
-async function listTotals(auth) {
-  const sheets = google.sheets({version: 'v4', auth});
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: '1O9ycQZau4Hy80BXmZQGKmf5CB5fqzRqB3IgHHV1wGgQ',
-    range: '2023!D2:E',
-  });
-  const rows = res.data.values;
-  if (!rows || rows.length === 0) {
-    console.log('No data found.');
+  const { date, amount } = program.opts();
+  if (!date || !amount) {
+    program.help();
     return;
   }
-  console.log('Month: Total:');
-  rows.forEach((row) => {
-    if (row[1]) {
-      console.log(`${getMonthName(row[0])}: ${row[1]}`);
-    }
-    
-  });
+
+  const auth = await authorize();
+  await appendValues(auth, [date, amount]);
+
+  console.log(`Successfully appended values: ${date}, ${amount}`);
 }
 
-authorize().then(listTotals).catch(console.error);
+run().catch(console.error);
