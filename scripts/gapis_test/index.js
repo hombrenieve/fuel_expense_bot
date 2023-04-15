@@ -1,11 +1,11 @@
 const fs = require('fs').promises;
 const path = require('path');
 const { google } = require("googleapis");
+const { Utilities } = require('googleapis/build/src/apis/script');
 const {authenticate} = require('@google-cloud/local-auth');
 const { program } = require("commander");
-const { promisify } = require("util");
-const { readFile } = require("fs");
 const spreadsheetId = "1O9ycQZau4Hy80BXmZQGKmf5CB5fqzRqB3IgHHV1wGgQ";
+const sheetId = "2023";
 
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 const TOKEN_PATH = path.join(process.cwd(), 'token.json');
@@ -49,11 +49,52 @@ async function authorize() {
   return client;
 }
 
+async function findMonthRange(auth, currentDate) {
+  const sheets = google.sheets({ version: "v4", auth });
+  
+
+  const sheet = await sheets.spreadsheets.get({
+    spreadsheetId,
+    ranges: [sheetId],
+    includeGridData: true,
+  });
+  const rows = sheet.data.sheets[0].data[0].rowData;
+  console.log(sheet.data.properties.locale);
+
+  const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+  const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+  let startRow = -1;
+  let endRow = -1;
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row.values) {
+      continue;
+    }
+
+    const dateString = row.values[0].formattedValue;
+    if (!dateString) {
+      continue;
+    }
+
+    const date = new Date(dateString);
+    if (date >= firstDayOfMonth && date <= lastDayOfMonth) {
+      if (startRow === -1) {
+        startRow = i + 1;
+      }
+      endRow = i + 1;
+    }
+  }
+
+  return startRow === -1 ? null : `${sheetId}!A${startRow}:B${endRow}`;
+}
+
+
 async function appendValues(auth, values) {
   const sheets = google.sheets({ version: "v4", auth });
   const request = {
     spreadsheetId,
-    range: "2023!A:B",
+    range: `${sheetId}!A:B`,
     valueInputOption: "USER_ENTERED",
     resource: {
       values: [values],
@@ -82,3 +123,5 @@ async function run() {
 }
 
 run().catch(console.error);
+//For testing individual functions, comment previous line and uncomment the following
+//module.exports = { authorize, findMonthRange }
