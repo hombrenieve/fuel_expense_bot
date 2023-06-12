@@ -90,11 +90,11 @@ async function findMonthRange(auth, currentDate) {
 }
 
 
-async function appendValues(auth, values) {
+async function appendValues(auth, range, values) {
   const sheets = google.sheets({ version: "v4", auth });
   const request = {
     spreadsheetId,
-    range: `${sheetId}!A:B`,
+    range: range,
     valueInputOption: "USER_ENTERED",
     resource: {
       values: [values],
@@ -102,6 +102,40 @@ async function appendValues(auth, values) {
     insertDataOption: "INSERT_ROWS",
   };
   await sheets.spreadsheets.values.append(request);
+}
+
+async function removeRow(auth, row) {
+  const sheets = google.sheets({ version: "v4", auth });
+  const request = {
+    spreadsheetId,
+    resource: {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId: await getSheetId(sheets),
+              dimension: 'ROWS',
+              startIndex: row - 1,
+              endIndex: row,
+            },
+          },
+        },
+      ],
+    },
+  };
+
+  await sheets.spreadsheets.batchUpdate(request);
+}
+
+async function getSheetId(sheets) {
+  const response = await sheets.spreadsheets.get({ spreadsheetId });
+  const sheet = response.data.sheets.find((s) => s.properties.title === `${sheetId}`);
+  return sheet.properties.sheetId;
+}
+
+async function insertValues(auth, range, values) {
+  await appendValues(auth, range, values);
+  await removeRow(auth, 13);
 }
 
 async function run() {
@@ -117,7 +151,7 @@ async function run() {
   }
 
   const auth = await authorize();
-  await appendValues(auth, [date, amount]);
+  await insertValues(auth, `${sheetId}!A1:B12`, [date, amount]);
 
   console.log(`Successfully appended values: ${date}, ${amount}`);
 }
