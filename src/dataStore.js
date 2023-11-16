@@ -4,31 +4,36 @@ const defaultLimit = 210;
 class dataStore {
 
     constructor() {
+        this.data = {}
     }
 
-    restart(user, id) {
-        this.currentAmount = 0;
+    start(user, id) {
+        this.data[user] = {
+            currentAmount: 0,
+            limit: defaultLimit,
+            id: id
+        }
     }
 
     getLimit(user) {
-        return this.limit;
+        return this.data[user].limit;
     }
     
     setLimit(user, newLimit) {
-        this.limit = newLimit;
+        this.data[user].limit = newLimit;
     }
 
     getAmount(user) {
-        return this.currentAmount;
+        return this.data[user].currentAmount;
     }
 
     //TODO: Make it void and use exception
     addAmount(user, amount) {
-        if (this.currentAmount+amount > this.limit) {
+        if (this.data[user].currentAmount+amount > this.data[user].limit) {
             return -1;
         }
-        this.currentAmount += amount;
-        return this.currentAmount;
+        this.data[user].currentAmount += amount;
+        return this.data[user].currentAmount;
     }
 
 }
