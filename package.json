@@ -3,12 +3,18 @@
     "version": "0.2.0",
     "description": "Even simpler telegram bot to store the fuel expenses and control the limit",
     "main": "src/bot.js",
+    "scripts": {
+        "test": "jest test"
+    },
     "engines": {
         "node": ">= 12.0.0"
     },
     "dependencies": {
-        "telebot": "^1.4.1",
         "log-timestamp": "^0.3.0",
+        "telebot": "^1.4.1"
     },
-    "author": "Hombrenieve <hombrenieve@gmail.com>"
+    "author": "Hombrenieve <hombrenieve@gmail.com>",
+    "devDependencies": {
+        "jest": "^29.7.0"
+    }
 }
