@@ -1,7 +1,7 @@
 
 const defaultLimit = 210;
 
-class dataStore {
+class DataStore {
 
     constructor() {
         this.data = {}
@@ -38,5 +38,5 @@ class dataStore {
 
 }
 
-module.exports.dataStore = dataStore;
+module.exports.DataStore = DataStore;
 module.exports.defaultLimit = defaultLimit;

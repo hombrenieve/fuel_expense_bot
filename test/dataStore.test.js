@@ -3,7 +3,7 @@ const ds = require("../src/dataStore");
 describe('dataStore tests', () => {
     
     beforeEach(() => {
-        dsSut = new ds.dataStore;
+        dsSut = new ds.DataStore;
         dsSut.start('whoever', 12345);
     })
 

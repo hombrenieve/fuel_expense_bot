@@ -1,15 +1,14 @@
 const TeleBot = require('telebot');
-const Db = require('./db.js');
+const ds = require('./dataStore.js');
 const config = require('./config.js');
 
 const bot = new TeleBot(config.api);
 
-const data = new Db.Db();
+const data = new ds.DataStore;
 
 bot.on('/start', (msg) => {
-    data.start(msg.from.username, msg.chat.id)
-    .then(() => sendData(msg))
-    .catch(err => console.log("Error starting", err));
+    data.start(msg.from.username, msg.chat.id);
+    sendData(msg);
 });
 
 bot.on('/check', (msg) => {
@@ -17,23 +16,20 @@ bot.on('/check', (msg) => {
 });
 
 bot.on(/^\d+\.*\d*$/, (msg) => {
-    data.addAmount(msg.from.username, new Date(), parseFloat(msg.text))
-        .then(added => {
-            if (added == -1) {
-                bot.sendMessage(msg.chat.id, "Expense exceeds limit!");
-            }
-            sendData(msg);
-        })
-        .catch(err => console.log("Error adding amount", err));
+    let ret = data.addAmount(msg.from.username, parseFloat(msg.text));
+    if (ret == -1) {
+        bot.sendMessage(msg.chat.id, "Expense exceeds limit!");
+    } else {
+        sendData(msg);
+    }
 });
 
 bot.on(/^\/config (.+)$/, (msg, props) => {
     const propsText = props.match[1].split(' ');
     if(propsText[0] == 'limit') {
         console.log("Configuring limit for "+msg.from.username+" to: "+propsText[1]);
-        data.setLimit(msg.from.username, parseFloat(propsText[1]))
-            .then(() => sendData(msg))
-            .catch(err => console.log("Error configuring limit for "+msg.from.username+" "+err));
+        data.setLimit(msg.from.username, parseFloat(propsText[1]));
+        sendData(msg);
     } else {
         console.log("Unknown config: "+ propsText[0]);
     }
@@ -44,21 +40,15 @@ function round(value, decimals) {
 }
 
 function sendData(msg) {
-    data.getAmount(msg.from.username, new Date())
-        .then(res => {
-            var rounded = round(res[0].monthlyTotal, 2);
-            bot.sendMessage(msg.chat.id,
-                "Spent: " + rounded.toString() + "\n" +
-                "Left: " + round(res[0].payLimit - res[0].monthlyTotal, 2))
-        })
-        .catch(err => console.log("Error getting amount", err));
+    let rounded = round(data.getAmount(msg.from.username), 2);
+    bot.sendMessage(msg.chat.id,
+        "Spent: " + rounded.toString() + "\n" +
+        "Left: " + round(data.getLimit(msg.from.username) - rounded, 2))
 }
 
 process.on('SIGINT', function() {
     console.log("Caught interrupt signal");
-
-    data.close();
-    bot.stop(); //Seems it takes enough time for the DB to close
+    bot.stop();
 });
 
 bot.start();
