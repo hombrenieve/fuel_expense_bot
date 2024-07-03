@@ -9,6 +9,7 @@ class Publisher {
 
     start() {
         this.client = mqtt.connect(this.url);
+        this.publish(0, 0, 0);
     }
 
     publish(currentTS, currentLimit, currentValue) {
@@ -17,7 +18,10 @@ class Publisher {
                 limit: currentLimit,
                 timestamp: currentTS,
                 value: currentValue,
+                left: currentLimit-currentValue
             }
         ));
     }
 }
+
+module.exports.Publisher = Publisher;

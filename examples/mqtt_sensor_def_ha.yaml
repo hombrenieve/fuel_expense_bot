@@ -1,0 +1,9 @@
+mqtt:
+  sensor:
+    - name: bmw_fuel_load
+      unique_id: "bmw_fuel_load"
+      unit_of_measurement: "EUR"
+      state_topic: "car/bmw/fuel_load"
+      device_class: "monetary"
+      value_template: "{{ value_json.amount }}"
+      state_class: "total_increasing"

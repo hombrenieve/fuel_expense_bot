@@ -1,13 +1,16 @@
 const TeleBot = require('telebot');
 const ds = require('./dataStore.js');
+const ps = require('./publisher.js')
 const config = require('./config.js');
 
 const bot = new TeleBot(config.api);
 
 const data = new ds.DataStore;
+const publisher = new ps.Publisher(config.mqtt);
 
 bot.on('/start', (msg) => {
     data.start(msg.from.username, msg.chat.id);
+    publisher.start();
     sendData(msg);
 });
 
@@ -21,6 +24,7 @@ bot.on(/^\d+\.*\d*$/, (msg) => {
         bot.sendMessage(msg.chat.id, "Expense exceeds limit!");
     } else {
         sendData(msg);
+        publisher.publish(0, data.getLimit(), data.getAmount());
     }
 });
 
