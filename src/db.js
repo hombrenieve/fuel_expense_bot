@@ -1,102 +1,132 @@
-const config = require("./config.js");
-const mariadb = require('mariadb');
-require('log-timestamp');
+const { google } = require("googleapis");
+const { authenticate } = require("@google-cloud/local-auth");
+const path = require("path");
+const fs = require("fs").promises;
 
-function fmtMonth(date) {
-    var month = '' + (date.getMonth() + 1),
-        year = date.getFullYear();
+const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]; // Google Sheets API scope
+const TOKEN_PATH = path.join(process.cwd(), "token.json");
+const CREDENTIALS_PATH = path.join(process.cwd(), "credentials.json");
 
-    if (month.length < 2) 
-        month = '0' + month;
-
-    return [year, month, '00'].join('-');
+async function loadSavedCredentialsIfExist() {
+    try {
+        const content = await fs.readFile(TOKEN_PATH);
+        const credentials = JSON.parse(content);
+        return google.auth.fromJSON(credentials);
+    } catch (err) {
+        return null;
+    }
 }
 
-function nextMonth(d) {
-    if(!d) {
-        d = new Date();
+async function saveCredentials(client) {
+    const content = await fs.readFile(CREDENTIALS_PATH);
+    const keys = JSON.parse(content);
+    const key = keys.installed || keys.web;
+    const payload = JSON.stringify({
+        type: "authorized_user",
+        client_id: key.client_id,
+        client_secret: key.client_secret,
+        refresh_token: client.credentials.refresh_token,
+    });
+    await fs.writeFile(TOKEN_PATH, payload);
+}
+
+async function authorize() {
+    let client = await loadSavedCredentialsIfExist();
+    if (client) {
+        return client;
     }
-    var nmd = new Date(d);
-    return new Date(nmd.setMonth(nmd.getMonth() + 1));
+    client = await authenticate({
+        scopes: SCOPES,
+        keyfilePath: CREDENTIALS_PATH,
+    });
+    if (client.credentials) {
+        await saveCredentials(client);
+    }
+    return client;
 }
 
 class Db {
     constructor() {
-        this.loadConnection();    
+        this.spreadsheetId = "<your_spreadsheet_id>"; // Replace with your Google Sheet ID
     }
 
-    loadConnection() {
-        mariadb.createConnection(config.db)
-            .then(conn => {
-                console.log("DB Connection established!");
-                this.conn = conn;
-                this.checkConnection();
-            })
-            .catch(err => {
-                console.log("DB Connection error:", err);
-                var that = this;
-                this.check = setTimeout(function() { that.checkConnection() }, config.app.pingInterval);
-            });
+    async addAmount(user, date, amount) {
+        const auth = await authorize();
+        const sheets = google.sheets({ version: "v4", auth });
+        const monthIndex = date.getMonth(); // Get month index (0 for January, 1 for February, etc.)
+        const column = String.fromCharCode(65 + monthIndex); // Convert to column letter (A for January, B for February, etc.)
+        const range = `Sheet1!${column}1:${column}`; // Assuming all months are in "Sheet1"
+
+        // Get existing data to find the first empty row
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: this.spreadsheetId,
+            range,
+        });
+
+        const rows = response.data.values || [];
+        const nextRow = rows.length + 1; // First empty row
+
+        // Append the data
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: this.spreadsheetId,
+            range: `${month}!A${nextRow}`,
+            valueInputOption: "USER_ENTERED",
+            resource: {
+                values: [[user, date.toISOString(), amount]],
+            },
+        });
+
+        return amount; // Return the added amount
     }
 
-    checkConnection() {
-        if(this.conn) {
-            this.conn.ping()
-                .then(() => {
-                    var that = this;
-                    this.check = setTimeout(function() { that.checkConnection() }, config.app.pingInterval);
-                })
-                .catch(err => {
-                    console.log("DB connection lost:", err);
-                    this.loadConnection();
-                })
-        } else {
-            console.log("DB connection not available");
-            this.loadConnection();
+    async getAmount(user, date) {
+        const auth = await authorize();
+        const sheets = google.sheets({ version: "v4", auth });
+        const monthIndex = date.getMonth(); // Get month index (0 for January, 1 for February, etc.)
+        const column = String.fromCharCode(65 + monthIndex); // Convert to column letter (A for January, B for February, etc.)
+        const range = `Sheet1!${column}1:${column}`; // Assuming all months are in "Sheet1"
+
+        // Get existing data
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: this.spreadsheetId,
+            range,
+        });
+
+        const rows = response.data.values || [];
+        let totalAmount = 0;
+
+        // Calculate the total amount for the user
+        if (rows.length >= 10) {
+            const row = rows[9]; // Row 10 (0-based index is 9)
+            if (row[0] === user) {
+            totalAmount = parseFloat(row[2]);
+            }
         }
-    }
 
-    start(user, id) {
-        return this.conn.query("INSERT INTO config(username, chatId) VALUES (?, ?)", [user, id]);
+        return totalAmount; // Return the total amount
     }
     
-    async getAmount(user, date) {
-        const curM = fmtMonth(date), nextM = fmtMonth(nextMonth(date));
-        return this.conn.query(
-            "SELECT config.payLimit AS payLimit,\
-            IFNULL(sum(counts.quantity), 0) AS monthlyTotal \
-            FROM config,counts \
-            WHERE config.username = ?\
-                AND counts.username = ?\
-                AND counts.txDate > ?\
-                AND counts.txDate < ?",
-        [user, user, curM, nextM]);
-    }
+    setLimit(user, date, limit) {
+       // just update row 11 of the first 12 columns with the limit
+        const monthIndex = date.getMonth(); // Get month index (0 for January, 1 for February, etc.)
+        const column = String.fromCharCode(65 + monthIndex); // Convert to column letter (A for January, B for February, etc.)
+        const range = `Sheet1!${column}11`; // Assuming all months are in "Sheet1"
 
-    async getLimit(user) {
-        const rows = await this.conn.query("SELECT payLimit FROM config WHERE username = ?", [user]);
-        return rows[0]['payLimit'];
-    }
+        // Update the limit
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: this.spreadsheetId,
+            range,
+            valueInputOption: "USER_ENTERED",
+            resource: {
+                values: [[limit]],
+            },
+        });
 
-    setLimit(user, newLimit) {
-        return this.conn.query("UPDATE config SET payLimit = ? WHERE username = ?", [newLimit, user]);
-    }
-
-    async addAmount(user, date, amount) { //TODO: Needs transaction
-        const [res,] = await this.getAmount(user, date);
-        if (res.monthlyTotal + amount > res.payLimit) {
-            return -1;
-        }
-        await this.conn.query("INSERT INTO counts(txDate, username, quantity) VALUES (?, ?, ?)", [date, user, amount]);
-        return res.monthlyTotal + amount;
+        return limit; // Return the set limit
     }
 
     close() {
-        console.log("DB connection is closing...");
-        clearTimeout(this.check);
-        this.conn.end()
-        .then(() => console.log("DB Connection succesfully closed!"))
-        .catch(err => console.log("DB connection error closing:", err));
+        console.log("No persistent connection to close for Google Sheets.");
     }
 }
 
