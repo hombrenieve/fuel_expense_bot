@@ -6,7 +6,7 @@ This plan implements containerized deployment for the Telegram fuel expense bot 
 
 ## Tasks
 
-- [ ] 1. Create .env.container file for containerized deployment
+- [x] 1. Create .env.container file for containerized deployment
   - Create .env.container file in project root with database connection settings
   - Set DB_HOST=localhost, DB_PORT=3306, DB_USERNAME=fuel_bot, DB_PASSWORD=fuel_bot_internal_pass, DB_DATABASE=fuel_expense_bot, DB_MAX_CONNECTIONS=5
   - Add comment explaining this file is for containerized deployment only
@@ -18,8 +18,8 @@ This plan implements containerized deployment for the Telegram fuel expense bot 
   - Test that bot fails with clear error when TELEGRAM_TOKEN is missing
   - _Requirements: 8.1, 8.4, 8.5_
 
-- [ ] 2. Create multi-stage Dockerfile
-  - [ ] 2.1 Implement build stage
+- [x] 2. Create multi-stage Dockerfile
+  - [x] 2.1 Implement build stage
     - Use rust:1.75-bookworm (or latest stable) as base image with specific version tag
     - Set working directory to /build
     - Copy Cargo.toml and Cargo.lock first for dependency caching
@@ -28,7 +28,7 @@ This plan implements containerized deployment for the Telegram fuel expense bot 
     - Build with --release flag and strip debug symbols
     - _Requirements: 1.1, 1.3, 9.2_
 
-  - [ ] 2.2 Implement runtime stage
+  - [x] 2.2 Implement runtime stage
     - Use gcr.io/distroless/cc-debian12:latest as minimal base image
     - Copy compiled binary from build stage to /usr/local/bin/telegram-fuel-bot
     - Copy .env.container file to /app/.env for runtime database configuration
