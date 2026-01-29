@@ -2,20 +2,21 @@
 
 ## Overview
 
-This plan implements containerized deployment for the Telegram fuel expense bot using a multi-stage Dockerfile and Podman pod specification. The implementation focuses on creating production-ready configuration files with minimal user configuration requirements (only TELEGRAM_TOKEN needed).
+This plan implements containerized deployment for the Telegram fuel expense bot using a multi-stage Dockerfile and Podman pod specification. The implementation focuses on creating production-ready configuration files with minimal runtime configuration requirements (only TELEGRAM_TOKEN needed). Database connection settings are pre-configured in a .env.container file that is copied into the image at build time.
 
 ## Tasks
 
-- [ ] 1. Update bot configuration for containerized deployment
-  - Modify src/config.rs to use hardcoded localhost database defaults for containerized deployment
-  - Add environment variable fallbacks: DB_HOST defaults to "localhost", DB_PORT to 3306, DB_USERNAME to "fuel_bot", DB_PASSWORD to "fuel_bot_internal_pass", DB_DATABASE to "fuel_expense_bot"
-  - Ensure TELEGRAM_TOKEN remains required with clear error message when missing
-  - _Requirements: 2.8, 8.1, 8.2, 8.4_
+- [ ] 1. Create .env.container file for containerized deployment
+  - Create .env.container file in project root with database connection settings
+  - Set DB_HOST=localhost, DB_PORT=3306, DB_USERNAME=fuel_bot, DB_PASSWORD=fuel_bot_internal_pass, DB_DATABASE=fuel_expense_bot, DB_MAX_CONNECTIONS=5
+  - Add comment explaining this file is for containerized deployment only
+  - _Requirements: 2.8, 8.1, 8.2, 8.3_
 
-- [ ]* 1.1 Write validation test for configuration defaults
-  - Test that bot starts with only TELEGRAM_TOKEN provided
+- [ ]* 1.1 Write validation test for .env.container file
+  - Test that .env.container file exists and contains all required variables
+  - Test that bot starts with only TELEGRAM_TOKEN provided at runtime (database config from .env.container)
   - Test that bot fails with clear error when TELEGRAM_TOKEN is missing
-  - _Requirements: 8.1, 8.4_
+  - _Requirements: 8.1, 8.4, 8.5_
 
 - [ ] 2. Create multi-stage Dockerfile
   - [ ] 2.1 Implement build stage
@@ -30,20 +31,22 @@ This plan implements containerized deployment for the Telegram fuel expense bot 
   - [ ] 2.2 Implement runtime stage
     - Use gcr.io/distroless/cc-debian12:latest as minimal base image
     - Copy compiled binary from build stage to /usr/local/bin/telegram-fuel-bot
+    - Copy .env.container file to /app/.env for runtime database configuration
     - Create non-root user (UID 1000, username: botuser) - Note: distroless already runs as non-root
     - Set WORKDIR to /app
     - Configure STOPSIGNAL SIGTERM for graceful shutdown
     - Set ENTRYPOINT to ["/usr/local/bin/telegram-fuel-bot"]
-    - _Requirements: 1.2, 1.4, 1.5, 5.2, 9.1_
+    - _Requirements: 1.2, 1.4, 1.5, 5.2, 8.2, 9.1_
 
   - [ ]* 2.3 Write Dockerfile validation tests
     - Parse Dockerfile and verify multi-stage structure (two FROM statements)
     - Verify build stage uses rust: base image with version tag
     - Verify runtime stage uses gcr.io/distroless/cc-debian12 base image
+    - Verify .env.container is copied to /app/.env in runtime stage
     - Verify distroless image runs as non-root by default
     - Verify STOPSIGNAL is set to SIGTERM
     - Verify ENTRYPOINT is configured
-    - _Requirements: 1.1, 1.2, 1.5, 5.2, 9.1, 9.2_
+    - _Requirements: 1.1, 1.2, 1.5, 5.2, 8.2, 9.1, 9.2_
 
   - [ ]* 2.4 Write image build and size validation test
     - Build the Dockerfile
@@ -93,12 +96,12 @@ This plan implements containerized deployment for the Telegram fuel expense bot 
     - Verify no external ports are exposed in either container
     - Verify database volume is mounted to /var/lib/mysql
     - Verify scripts volume is mounted to /docker-entrypoint-initdb.d
-    - Verify TELEGRAM_TOKEN is in bot container environment
-    - Verify database environment variables match bot's hardcoded defaults
+    - Verify TELEGRAM_TOKEN is in bot container environment (runtime)
+    - Verify database environment variables match .env.container file values
     - Verify health checks are configured for both containers
     - Verify terminationGracePeriodSeconds is set
     - Verify restartPolicy is configured
-    - _Requirements: 2.1, 2.3, 2.4, 2.5, 2.6, 2.7, 2.9, 4.1, 4.2, 4.4, 4.5, 5.3, 9.4_
+    - _Requirements: 2.1, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 4.1, 4.2, 4.4, 4.5, 5.3, 9.4_
 
 - [ ] 4. Create deployment helper script
   - [ ] 4.1 Create scripts/operations/bot.sh script with multiple commands
@@ -201,8 +204,9 @@ This plan implements containerized deployment for the Telegram fuel expense bot 
 ## Notes
 
 - Tasks marked with `*` are optional and can be skipped for faster deployment
-- The bot's configuration code (src/config.rs) needs to be updated to support hardcoded defaults for containerized deployment
+- The .env.container file will be copied into the Docker image at build time
 - The existing Dockerfile and docker-compose.yml are outdated (Node.js-based) and will be replaced
-- Database credentials are internal to the pod and don't need to be user-configurable
+- Database credentials are internal to the pod and don't need to be user-configurable at runtime
+- Only TELEGRAM_TOKEN needs to be provided at runtime
 - No external ports are exposed since the bot uses polling mode
 - Volume persistence ensures database data survives pod restarts

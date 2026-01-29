@@ -42,8 +42,8 @@ This document specifies the requirements for containerized deployment of the Tel
 4. THE Pod_Specification SHALL NOT expose any external ports for the bot (polling mode requires no incoming connections)
 5. THE Pod_Specification SHALL define a named volume for database persistence
 6. THE Pod_Specification SHALL mount the database volume to the appropriate MariaDB data directory
-7. THE Pod_Specification SHALL pass the TELEGRAM_TOKEN environment variable to Bot_Container
-8. THE Bot_Container SHALL use hardcoded localhost database connection settings (host: localhost, port: 3306, user: fuel_bot, database: fuel_expense_bot)
+7. THE Pod_Specification SHALL pass the TELEGRAM_TOKEN environment variable to Bot_Container at runtime
+8. THE Bot_Container SHALL read database connection settings from .env.container file copied at build time
 9. THE Pod_Specification SHALL configure Database_Container with matching credentials for the bot user
 10. WHERE optional configuration is desired, THE Pod_Specification SHALL support environment variables for DEFAULT_LIMIT and RUST_LOG
 
@@ -104,15 +104,16 @@ This document specifies the requirements for containerized deployment of the Tel
 
 ### Requirement 8: Environment-Based Configuration
 
-**User Story:** As a DevOps engineer, I want minimal environment-based configuration, so that I can deploy quickly with only the bot token.
+**User Story:** As a DevOps engineer, I want minimal runtime configuration, so that I can deploy quickly with only the bot token.
 
 #### Acceptance Criteria
 
-1. THE Bot_Container SHALL require only the TELEGRAM_TOKEN environment variable for basic operation
-2. THE Bot_Container SHALL use sensible defaults for database connection (localhost:3306, fuel_bot user, fuel_expense_bot database)
-3. WHERE optional configuration is desired, THE Bot_Container SHALL support DEFAULT_LIMIT and RUST_LOG environment variables
-4. WHEN the TELEGRAM_TOKEN environment variable is missing, THE Bot_Container SHALL fail with a clear error message
-5. THE Pod_Specification SHALL provide a template or example showing the minimal required configuration
+1. THE Bot_Container SHALL require only the TELEGRAM_TOKEN environment variable at runtime
+2. THE Dockerfile SHALL copy a pre-defined .env.container file with database connection settings at build time
+3. THE pre-defined .env.container SHALL contain: DB_HOST=localhost, DB_PORT=3306, DB_USERNAME=fuel_bot, DB_PASSWORD=fuel_bot_internal_pass, DB_DATABASE=fuel_expense_bot
+4. WHERE optional configuration is desired, THE Bot_Container SHALL support DEFAULT_LIMIT and RUST_LOG environment variables at runtime
+5. WHEN the TELEGRAM_TOKEN environment variable is missing, THE Bot_Container SHALL fail with a clear error message
+6. THE Pod_Specification SHALL provide a template or example showing the minimal required runtime configuration
 
 ### Requirement 9: Production Readiness
 

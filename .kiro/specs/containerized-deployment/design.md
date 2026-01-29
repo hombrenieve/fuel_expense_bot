@@ -81,6 +81,7 @@ The Dockerfile consists of two stages:
 - **Purpose**: Provide minimal runtime environment
 - **Key Operations**:
   - Copy compiled binary from build stage
+  - Copy .env.container file with database connection settings
   - Set non-root user (UID 1000)
   - Configure working directory
   - Set entrypoint to bot binary
@@ -118,15 +119,16 @@ metadata:
 **Bot Container**:
 - Image: `localhost/fuel-bot:latest` (built from Dockerfile)
 - Environment Variables:
-  - `TELEGRAM_TOKEN`: Required, provided by user
-  - `DB_HOST`: localhost (hardcoded in config)
-  - `DB_PORT`: 3306 (hardcoded in config)
-  - `DB_USERNAME`: fuel_bot (hardcoded in config)
-  - `DB_PASSWORD`: Matches MariaDB container (hardcoded in config)
-  - `DB_DATABASE`: fuel_expense_bot (hardcoded in config)
-  - `DB_MAX_CONNECTIONS`: 5 (hardcoded default)
+  - `TELEGRAM_TOKEN`: Required, provided by user at runtime
   - `DEFAULT_LIMIT`: Optional, defaults to 210.00
   - `RUST_LOG`: Optional, defaults to telegram_fuel_bot=info
+- Build-Time Configuration (from .env.container):
+  - `DB_HOST`: localhost
+  - `DB_PORT`: 3306
+  - `DB_USERNAME`: fuel_bot
+  - `DB_PASSWORD`: fuel_bot_internal_pass (matches MariaDB container)
+  - `DB_DATABASE`: fuel_expense_bot
+  - `DB_MAX_CONNECTIONS`: 5
 - Depends On: MariaDB container (via init containers or restart policy)
 - Health Check: `pgrep -f telegram-fuel-bot` or process check
 
@@ -146,21 +148,21 @@ volumes:
 
 Since the bot and database run in the same pod, configuration is simplified:
 
-**Hardcoded Configuration** (in bot's config.rs or via environment defaults):
-```rust
-// Database connection defaults for containerized deployment
-const DB_HOST: &str = "localhost";
-const DB_PORT: u16 = 3306;
-const DB_USERNAME: &str = "fuel_bot";
-const DB_PASSWORD: &str = "fuel_bot_internal_pass";
-const DB_DATABASE: &str = "fuel_expense_bot";
-const DB_MAX_CONNECTIONS: u32 = 5;
+**Build-Time Configuration** (via .env.container file copied into image):
+```bash
+# .env.container - Database connection settings for containerized deployment
+DB_HOST=localhost
+DB_PORT=3306
+DB_USERNAME=fuel_bot
+DB_PASSWORD=fuel_bot_internal_pass
+DB_DATABASE=fuel_expense_bot
+DB_MAX_CONNECTIONS=5
 ```
 
-**User-Provided Configuration**:
+**Runtime Configuration** (provided at deployment):
 - `TELEGRAM_TOKEN`: Must be provided via environment variable or secret
 
-**Optional Configuration**:
+**Optional Runtime Configuration**:
 - `DEFAULT_LIMIT`: Spending limit for new users (default: 210.00)
 - `RUST_LOG`: Logging level (default: telegram_fuel_bot=info)
 
@@ -215,14 +217,22 @@ podman pod rm fuel-bot-pod
 
 ### Environment Variable Schema
 
-**Required**:
+**Runtime (Required)**:
 - `TELEGRAM_TOKEN` (string): Bot authentication token from @BotFather
 
-**Optional**:
+**Runtime (Optional)**:
 - `DEFAULT_LIMIT` (decimal): Default monthly spending limit (default: 210.00)
 - `RUST_LOG` (string): Log level configuration (default: telegram_fuel_bot=info)
 
-**Internal** (set by pod specification):
+**Build-Time** (from .env.container file):
+- `DB_HOST` (string): Database host (localhost)
+- `DB_PORT` (integer): Database port (3306)
+- `DB_USERNAME` (string): Bot database user (fuel_bot)
+- `DB_PASSWORD` (string): Bot database password (fuel_bot_internal_pass)
+- `DB_DATABASE` (string): Database name (fuel_expense_bot)
+- `DB_MAX_CONNECTIONS` (integer): Connection pool size (5)
+
+**Internal** (set by pod specification for MariaDB container):
 - `MARIADB_ROOT_PASSWORD` (string): Database root password
 - `MARIADB_DATABASE` (string): Database name
 - `MARIADB_USER` (string): Bot database user
@@ -263,8 +273,8 @@ When the pod is deployed, the bot container must be able to connect to the datab
 **Validates: Requirements 2.2**
 
 **Test 5: Environment Variable Configuration**
-The pod YAML must configure the bot container with TELEGRAM_TOKEN (required) and optionally DEFAULT_LIMIT and RUST_LOG. The database container must have MARIADB_USER, MARIADB_PASSWORD, MARIADB_ROOT_PASSWORD, and MARIADB_DATABASE set with values matching the bot's hardcoded defaults.
-**Validates: Requirements 2.7, 2.8, 2.9, 2.10, 8.1, 8.2, 8.3**
+The pod YAML must configure the bot container with TELEGRAM_TOKEN (required at runtime) and optionally DEFAULT_LIMIT and RUST_LOG. The bot image must contain .env.container file with database connection settings. The database container must have MARIADB_USER, MARIADB_PASSWORD, MARIADB_ROOT_PASSWORD, and MARIADB_DATABASE set with values matching the .env.container file.
+**Validates: Requirements 2.7, 2.8, 2.9, 2.10, 8.1, 8.2, 8.3, 8.4**
 
 **Test 6: Database Initialization**
 When the database container starts for the first time, it must execute scripts/initdb.sql and create the config and counts tables. The pod YAML must mount the scripts directory to /docker-entrypoint-initdb.d.
@@ -291,8 +301,8 @@ When resource limits are added to the pod YAML, they must be properly formatted 
 **Validates: Requirements 7.1, 7.2, 7.3, 7.4**
 
 **Test 12: Minimal Configuration**
-The bot must start successfully with only TELEGRAM_TOKEN provided. When TELEGRAM_TOKEN is missing, the bot must fail with a clear error message.
-**Validates: Requirements 8.1, 8.4, 8.5**
+The bot must start successfully with only TELEGRAM_TOKEN provided at runtime (database settings come from .env.container at build time). When TELEGRAM_TOKEN is missing, the bot must fail with a clear error message.
+**Validates: Requirements 8.1, 8.4, 8.6**
 
 **Test 13: Production Readiness**
 The pod YAML must configure a restart policy for automatic recovery. The database container must start before the bot container attempts connection (using initContainers or startup probes).
