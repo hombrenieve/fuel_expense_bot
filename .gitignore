@@ -2,3 +2,12 @@ package-lock.json
 node_modules
 src/config.js
 *.pem
+
+# Rust
+/target
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# Environment
+.env
