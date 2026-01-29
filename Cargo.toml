@@ -1,0 +1,53 @@
+[package]
+name = "telegram-fuel-bot"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Telegram bot framework
+teloxide = { version = "0.12", features = ["macros"] }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "mysql", "chrono", "rust_decimal"] }
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+
+# Decimal arithmetic for currency
+rust_decimal = "1.33"
+rust_decimal_macros = "1.33"
+
+# Date and time
+chrono = "0.4"
+
+# Error handling
+thiserror = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Async trait support
+async-trait = "0.1"
+
+# Environment variables
+dotenv = "0.15"
+
+# TOML parsing for config files
+toml = "0.8"
+
+[dev-dependencies]
+# Property-based testing
+proptest = "1.4"
+
+# Testing utilities
+tokio-test = "0.4"
+
+# TOML parsing for config tests
+toml = "0.8"
+
+# Serial test execution for tests that modify global state
+serial_test = "3.0"
