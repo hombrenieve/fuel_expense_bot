@@ -62,7 +62,7 @@ pub async fn run_dispatcher(
                     // Try to parse the message text as a decimal number
                     msg.text()
                         .and_then(|text| text.parse::<Decimal>().ok())
-                        .map(|amount| (msg, amount))
+                        .map(|amount| amount)
                 })
                 .endpoint(numeric_handler),
         );
