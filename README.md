@@ -2,6 +2,14 @@
 
 A Telegram bot to track monthly fuel expenses and enforce spending limits. Built with Rust for reliability, type safety, and performance.
 
+**🚀 New to this bot?** Check out the [Quick Start Guide](docs/QUICKSTART.md) to get running in 5 minutes with Podman!
+
+## Documentation
+
+- **[Quick Start Guide](docs/QUICKSTART.md)** - Get up and running in 5 minutes
+- **[Setup Summary](docs/SETUP_SUMMARY.md)** - Quick reference for setup commands
+- **[Full Documentation](#getting-started)** - Complete guide below
+
 ## Features
 
 - 🚗 **Track fuel expenses** - Simply send a number to record a fuel purchase
@@ -13,6 +21,16 @@ A Telegram bot to track monthly fuel expenses and enforce spending limits. Built
 
 ## Getting Started
 
+**New users:** Follow the [Quick Start Guide](docs/QUICKSTART.md) for a step-by-step setup with Podman/Docker (takes ~5 minutes).
+
+**Experienced users:** See the [Full Setup Guide](#full-setup-guide) below for production deployments and custom configurations.
+
+---
+
+## Full Setup Guide
+
+For production deployments or custom configurations:
+
 ### Prerequisites
 
 1. **Rust** (1.70 or later): Install from [https://rustup.rs/](https://rustup.rs/)
@@ -21,19 +39,43 @@ A Telegram bot to track monthly fuel expenses and enforce spending limits. Built
 
 ### Setup
 
-1. **Create the database schema:**
+1. **Create the database** (if not using the Quick Start method above):
    ```bash
-   mysql -u your_user -p your_database < scripts/initdb.sql
+   # Create database and user
+   mysql -u root -p << 'EOF'
+   CREATE DATABASE fuel_expense_bot;
+   CREATE USER 'fuel_bot'@'localhost' IDENTIFIED BY 'your_secure_password';
+   GRANT ALL PRIVILEGES ON fuel_expense_bot.* TO 'fuel_bot'@'localhost';
+   FLUSH PRIVILEGES;
+   EOF
+   
+   # Initialize schema
+   mysql -u fuel_bot -p fuel_expense_bot < scripts/initdb.sql
    ```
 
 2. **Configure environment variables:**
    
-   Copy the example file:
+   Copy the example file and edit with your values:
    ```bash
    cp .env.example .env
+   # Edit .env with your favorite editor
+   nano .env  # or vim, code, etc.
    ```
 
-   Edit `.env` with your configuration (see [Environment Variables](#environment-variables) section below).
+   **Required variables** (must be set):
+   - `TELEGRAM_TOKEN` - Your bot token from [@BotFather](https://t.me/botfather)
+   - `DB_HOST` - Database host (e.g., `localhost`)
+   - `DB_PORT` - Database port (usually `3306`)
+   - `DB_USERNAME` - Database username
+   - `DB_PASSWORD` - Database password
+   - `DB_DATABASE` - Database name
+
+   **Optional variables** (have defaults):
+   - `DB_MAX_CONNECTIONS` - Max connections (default: `5`)
+   - `DEFAULT_LIMIT` - Default monthly limit (default: `210.00`)
+   - `RUST_LOG` - Logging level (default: `info`)
+
+   See [Environment Variables](#environment-variables) section below for details.
 
 3. **Build and run the bot:**
    ```bash
@@ -48,21 +90,34 @@ A Telegram bot to track monthly fuel expenses and enforce spending limits. Built
 
 ### Environment Variables
 
-All configuration is done through environment variables. Create a `.env` file in the project root with the following variables:
+Configuration is done through environment variables (loaded from `.env` file or set in your shell).
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `TELEGRAM_TOKEN` | **Yes** | - | Your Telegram bot token from [@BotFather](https://t.me/botfather) |
-| `DB_HOST` | **Yes** | - | Database host (e.g., `localhost` or `127.0.0.1`) |
-| `DB_PORT` | No | `3306` | Database port |
-| `DB_USERNAME` | **Yes** | - | Database username |
-| `DB_PASSWORD` | **Yes** | - | Database password |
-| `DB_DATABASE` | **Yes** | - | Database name |
-| `DB_MAX_CONNECTIONS` | No | `5` | Maximum number of database connections in the pool |
-| `DEFAULT_LIMIT` | No | `210.00` | Default monthly spending limit for new users (in euros) |
-| `RUST_LOG` | No | `info` | Logging level (`error`, `warn`, `info`, `debug`, `trace`) |
+#### Required Variables
 
-**Example `.env` file:**
+These **must** be set for the bot to start:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `TELEGRAM_TOKEN` | Your Telegram bot token from [@BotFather](https://t.me/botfather) | `1234567890:ABCdefGHI...` |
+| `DB_HOST` | Database host | `localhost` or `127.0.0.1` |
+| `DB_PORT` | Database port | `3306` |
+| `DB_USERNAME` | Database username | `fuel_bot` |
+| `DB_PASSWORD` | Database password | `your_password` |
+| `DB_DATABASE` | Database name | `fuel_expense_bot` |
+
+#### Optional Variables
+
+These have sensible defaults and can be omitted:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DB_MAX_CONNECTIONS` | `5` | Maximum database connections in the pool |
+| `DEFAULT_LIMIT` | `210.00` | Default monthly spending limit for new users (in euros) |
+| `RUST_LOG` | `info` | Logging level: `error`, `warn`, `info`, `debug`, or `trace` |
+
+#### Example `.env` File
+
+**Minimal configuration** (only required variables):
 ```env
 TELEGRAM_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
 DB_HOST=localhost
@@ -70,6 +125,19 @@ DB_PORT=3306
 DB_USERNAME=fuel_bot
 DB_PASSWORD=secure_password_here
 DB_DATABASE=fuel_expense_bot
+```
+
+**Full configuration** (with optional variables):
+```env
+# Required
+TELEGRAM_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
+DB_HOST=localhost
+DB_PORT=3306
+DB_USERNAME=fuel_bot
+DB_PASSWORD=secure_password_here
+DB_DATABASE=fuel_expense_bot
+
+# Optional (these are the defaults if omitted)
 DB_MAX_CONNECTIONS=5
 DEFAULT_LIMIT=210.00
 RUST_LOG=telegram_fuel_bot=info
