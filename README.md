@@ -2,13 +2,9 @@
 
 A Telegram bot to track monthly fuel expenses and enforce spending limits. Built with Rust for reliability, type safety, and performance.
 
-**🚀 New to this bot?** Check out the [Quick Start Guide](docs/QUICKSTART.md) to get running in 5 minutes with Podman!
-
 ## Documentation
 
-- **[Quick Start Guide](docs/QUICKSTART.md)** - Get up and running in 5 minutes
-- **[Setup Summary](docs/SETUP_SUMMARY.md)** - Quick reference for setup commands
-- **[Full Documentation](#getting-started)** - Complete guide below
+- **[Deployment Guide](DEPLOYMENT.md)** - Complete containerized deployment instructions and troubleshooting
 
 ## Features
 
@@ -21,24 +17,24 @@ A Telegram bot to track monthly fuel expenses and enforce spending limits. Built
 
 ## Getting Started
 
-**New users:** Follow the [Quick Start Guide](docs/QUICKSTART.md) for a step-by-step setup with Podman/Docker (takes ~5 minutes).
+Choose your deployment method:
 
-**Experienced users:** See the [Full Setup Guide](#full-setup-guide) below for production deployments and custom configurations.
+1. **[Containerized Deployment](#containerized-deployment)** (Recommended) - Production-ready setup with Podman, requires only a bot token
+2. **[Manual Setup](#manual-setup)** - For custom configurations or development
 
 ---
 
 ## Containerized Deployment
 
-Deploy the bot using Podman pods for a production-ready, isolated environment with minimal configuration.
+**Recommended for production use.** Deploy with Podman for an isolated, production-ready environment.
 
-### Why Containerized Deployment?
+### Prerequisites
 
-- **Minimal configuration**: Only requires `TELEGRAM_TOKEN` at runtime
-- **Isolated environment**: Bot and database run in a secure pod
-- **Easy updates**: Rebuild and redeploy without affecting data
-- **Production-ready**: Includes health checks, graceful shutdown, and automatic restart
+- Podman installed ([installation guide](https://podman.io/getting-started/installation))
+- `envsubst` utility (usually pre-installed on Linux/macOS)
+- Telegram bot token from [@BotFather](https://t.me/botfather)
 
-### Quick Start with Podman
+### Quick Start
 
 ```bash
 # 1. Build the bot container image
@@ -58,51 +54,75 @@ podman pod ps --filter name=fuel-bot-pod
 podman logs -f fuel-bot-pod-fuel-bot-app
 ```
 
-### Management Commands
+### Why Containerized?
+
+- **Minimal configuration**: Only requires `TELEGRAM_TOKEN`
+- **Isolated environment**: Bot and database run in a secure pod
+- **Easy updates**: Rebuild and redeploy without affecting data
+- **Production-ready**: Health checks, graceful shutdown, automatic restart
+
+### Management
 
 ```bash
-# Check pod status
+# Check status
 podman pod ps --filter name=fuel-bot-pod
 
-# View bot logs
+# View logs
 podman logs -f fuel-bot-pod-fuel-bot-app
-
-# View database logs
-podman logs -f fuel-bot-pod-fuel-bot-db
 
 # Stop the pod
 podman pod stop fuel-bot-pod && podman pod rm fuel-bot-pod
 ```
 
-### Configuration
-
-The containerized deployment requires only the `TELEGRAM_TOKEN` environment variable. Database connection settings are pre-configured and copied into the image at build time.
-
-**Optional environment variables** (set in `pod.yaml`):
-- `DEFAULT_LIMIT`: Default monthly spending limit (default: 210.00)
-- `RUST_LOG`: Logging level (default: telegram_fuel_bot=info)
-
-### Detailed Instructions
-
-For complete deployment instructions, troubleshooting, and advanced operations, see the [Deployment Guide](DEPLOYMENT.md).
+**For detailed instructions, troubleshooting, and advanced operations, see the [Deployment Guide](DEPLOYMENT.md).**
 
 ---
 
-## Full Setup Guide
+## Manual Setup
 
-For production deployments or custom configurations:
+For development or custom configurations where you want to run the bot directly without containers.
 
 ### Prerequisites
 
-1. **Rust** (1.70 or later): Install from [https://rustup.rs/](https://rustup.rs/)
-2. **MariaDB or MySQL** database (10.5+ or 8.0+)
-3. **Telegram bot token** from [@BotFather](https://t.me/botfather)
+- Rust 1.70+ ([install from rustup.rs](https://rustup.rs/))
+- MariaDB 10.5+ or MySQL 8.0+
+- Telegram bot token from [@BotFather](https://t.me/botfather)
 
-### Setup
+### Setup Steps
 
-1. **Create the database** (if not using the Quick Start method above):
+1. **Set up the database:**
+
+   **Option A: Using the setup script (Easiest)**
    ```bash
-   # Create database and user
+   # Run the automated setup script (works with Podman or Docker)
+   ./scripts/setup-dev-db.sh
+   ```
+   This script automatically:
+   - Detects and uses Podman or Docker
+   - Creates and starts a MariaDB container
+   - Initializes the database schema
+   - Displays connection details for your `.env` file
+
+   **Option B: Manual Podman setup**
+   ```bash
+   # Start MariaDB container
+   podman run -d \
+     --name fuel-bot-mariadb \
+     -e MARIADB_ROOT_PASSWORD=rootpass \
+     -e MARIADB_DATABASE=fuel_expense_bot \
+     -e MARIADB_USER=fuel_bot \
+     -e MARIADB_PASSWORD=fuel_bot_pass \
+     -p 3306:3306 \
+     -v fuel-bot-db:/var/lib/mysql \
+     docker.io/library/mariadb:11.2
+   
+   # Wait a few seconds for MariaDB to start, then initialize schema
+   sleep 10
+   podman exec -i fuel-bot-mariadb mariadb -u fuel_bot -pfuel_bot_pass fuel_expense_bot < scripts/initdb.sql
+   ```
+
+   **Option C: Using local MariaDB/MySQL**
+   ```bash
    mysql -u root -p << 'EOF'
    CREATE DATABASE fuel_expense_bot;
    CREATE USER 'fuel_bot'@'localhost' IDENTIFIED BY 'your_secure_password';
@@ -110,75 +130,36 @@ For production deployments or custom configurations:
    FLUSH PRIVILEGES;
    EOF
    
-   # Initialize schema
    mysql -u fuel_bot -p fuel_expense_bot < scripts/initdb.sql
    ```
 
 2. **Configure environment variables:**
-   
-   Copy the example file and edit with your values:
    ```bash
    cp .env.example .env
-   # Edit .env with your favorite editor
-   nano .env  # or vim, code, etc.
+   # Edit .env with your database credentials and bot token
+   # (If you used the setup script, it displays the values to use)
    ```
 
-   **Required variables** (must be set):
-   - `TELEGRAM_TOKEN` - Your bot token from [@BotFather](https://t.me/botfather)
-   - `DB_HOST` - Database host (e.g., `localhost`)
-   - `DB_PORT` - Database port (usually `3306`)
-   - `DB_USERNAME` - Database username
-   - `DB_PASSWORD` - Database password
-   - `DB_DATABASE` - Database name
-
-   **Optional variables** (have defaults):
-   - `DB_MAX_CONNECTIONS` - Max connections (default: `5`)
-   - `DEFAULT_LIMIT` - Default monthly limit (default: `210.00`)
-   - `RUST_LOG` - Logging level (default: `info`)
-
-   See [Environment Variables](#environment-variables) section below for details.
-
-3. **Build and run the bot:**
+3. **Build and run:**
    ```bash
    cargo build --release
    cargo run --release
    ```
 
-   For development with debug logging:
-   ```bash
-   RUST_LOG=telegram_fuel_bot=debug cargo run
-   ```
-
 ### Environment Variables
 
-Configuration is done through environment variables (loaded from `.env` file or set in your shell).
+Configuration is done through environment variables (loaded from `.env` file).
 
-#### Required Variables
+**Required:**
+- `TELEGRAM_TOKEN` - Bot token from [@BotFather](https://t.me/botfather)
+- `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE` - Database connection settings
 
-These **must** be set for the bot to start:
+**Optional:**
+- `DB_MAX_CONNECTIONS` - Connection pool size (default: 5)
+- `DEFAULT_LIMIT` - Default monthly spending limit (default: 210.00)
+- `RUST_LOG` - Logging level (default: info)
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `TELEGRAM_TOKEN` | Your Telegram bot token from [@BotFather](https://t.me/botfather) | `1234567890:ABCdefGHI...` |
-| `DB_HOST` | Database host | `localhost` or `127.0.0.1` |
-| `DB_PORT` | Database port | `3306` |
-| `DB_USERNAME` | Database username | `fuel_bot` |
-| `DB_PASSWORD` | Database password | `your_password` |
-| `DB_DATABASE` | Database name | `fuel_expense_bot` |
-
-#### Optional Variables
-
-These have sensible defaults and can be omitted:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DB_MAX_CONNECTIONS` | `5` | Maximum database connections in the pool |
-| `DEFAULT_LIMIT` | `210.00` | Default monthly spending limit for new users (in euros) |
-| `RUST_LOG` | `info` | Logging level: `error`, `warn`, `info`, `debug`, or `trace` |
-
-#### Example `.env` File
-
-**Minimal configuration** (only required variables):
+**Example `.env` file:**
 ```env
 TELEGRAM_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
 DB_HOST=localhost
@@ -188,21 +169,7 @@ DB_PASSWORD=secure_password_here
 DB_DATABASE=fuel_expense_bot
 ```
 
-**Full configuration** (with optional variables):
-```env
-# Required
-TELEGRAM_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
-DB_HOST=localhost
-DB_PORT=3306
-DB_USERNAME=fuel_bot
-DB_PASSWORD=secure_password_here
-DB_DATABASE=fuel_expense_bot
-
-# Optional (these are the defaults if omitted)
-DB_MAX_CONNECTIONS=5
-DEFAULT_LIMIT=210.00
-RUST_LOG=telegram_fuel_bot=info
-```
+---
 
 ## Using the Bot
 
@@ -294,97 +261,35 @@ src/
 
 ## Troubleshooting
 
-### Bot won't start
+**For containerized deployments:** See the [Deployment Guide](DEPLOYMENT.md) troubleshooting section.
 
-**Problem:** Bot fails to start with configuration error
+**For manual setup:**
 
-**Solution:** 
-- Verify all required environment variables are set in `.env`
-- Check that `TELEGRAM_TOKEN` is valid (get a new one from [@BotFather](https://t.me/botfather) if needed)
-- Ensure `.env` file is in the same directory where you run `cargo run`
+### Common Issues
 
-**Problem:** Database connection error
-
-**Solution:**
+**Bot won't start:**
+- Verify all environment variables are set in `.env`
+- Check `TELEGRAM_TOKEN` is valid (get a new one from [@BotFather](https://t.me/botfather))
 - Verify database is running: `mysql -u your_user -p -e "SELECT 1;"`
-- Check `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, and `DB_DATABASE` are correct
-- Ensure database user has proper permissions: `GRANT ALL ON fuel_expense_bot.* TO 'fuel_bot'@'localhost';`
-- Verify tables exist: `mysql -u your_user -p your_database -e "SHOW TABLES;"`
+- Check database credentials in `.env` are correct
 
-### Bot doesn't respond to commands
+**Bot doesn't respond:**
+- Send `/start` command first (required for registration)
+- Check logs: `RUST_LOG=telegram_fuel_bot=debug cargo run`
+- Verify bot is not stopped in [@BotFather](https://t.me/botfather)
 
-**Problem:** Bot is running but doesn't respond to messages
+**Expenses rejected:**
+- Check spending: `/check`
+- Increase limit: `/config limit 300.00`
 
-**Solution:**
-- Check bot logs for errors: `RUST_LOG=telegram_fuel_bot=debug cargo run`
-- Verify you've sent `/start` command first (required for registration)
-- Ensure your Telegram username is set (Settings → Edit Profile → Username)
-- Check bot token is correct and bot is not stopped in [@BotFather](https://t.me/botfather)
+### Logging
 
-### Expenses are rejected
-
-**Problem:** "Expense rejected! This expense would exceed your monthly limit"
-
-**Solution:**
-- Check your current spending: `/check`
-- Increase your limit if needed: `/config limit 300.00`
-- Wait until next month for budget to reset
-
-**Problem:** "You need to register first"
-
-**Solution:**
-- Send `/start` command to register with the bot
-
-### Database issues
-
-**Problem:** "Unable to process your request right now"
-
-**Solution:**
-- Check database is running and accessible
-- Verify database connection settings in `.env`
-- Check database logs for errors
-- Ensure tables were created: `mysql -u your_user -p your_database < scripts/initdb.sql`
-
-**Problem:** Duplicate key error or constraint violation
-
-**Solution:**
-- This usually indicates a bug. Check logs with `RUST_LOG=telegram_fuel_bot=debug`
-- Verify database schema matches `scripts/initdb.sql`
-- Consider recreating tables (⚠️ this will delete all data):
-  ```bash
-  mysql -u your_user -p your_database -e "DROP TABLE IF EXISTS counts, config;"
-  mysql -u your_user -p your_database < scripts/initdb.sql
-  ```
-
-### Performance issues
-
-**Problem:** Bot is slow to respond
-
-**Solution:**
-- Increase `DB_MAX_CONNECTIONS` in `.env` (try `10` or `20`)
-- Check database server performance
-- Ensure database has proper indexes (they're created by `initdb.sql`)
-
-### Logging and debugging
-
-To enable detailed logging:
+Enable detailed logging for debugging:
 ```bash
-# Debug level for bot only
 RUST_LOG=telegram_fuel_bot=debug cargo run
-
-# Trace level for everything (very verbose)
-RUST_LOG=trace cargo run
-
-# Debug for bot, info for dependencies
-RUST_LOG=telegram_fuel_bot=debug,info cargo run
 ```
 
-Log levels (from least to most verbose):
-- `error` - Only errors
-- `warn` - Warnings and errors
-- `info` - General information (default)
-- `debug` - Detailed debugging information
-- `trace` - Very detailed trace information
+Log levels: `error`, `warn`, `info` (default), `debug`, `trace`
 
 ## Graceful Shutdown
 
