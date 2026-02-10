@@ -166,26 +166,43 @@ DB_MAX_CONNECTIONS=5
 - `DEFAULT_LIMIT`: Spending limit for new users (default: 210.00)
 - `RUST_LOG`: Logging level (default: telegram_fuel_bot=info)
 
-### 4. Deployment Scripts
+### 4. Deployment Commands
 
-To simplify deployment, provide helper scripts:
+The deployment uses standard Podman commands:
 
-**build.sh**: Builds the bot container image
+**Build the bot container image**:
 ```bash
-#!/bin/bash
 podman build -t fuel-bot:latest -f Dockerfile .
 ```
 
-**deploy.sh**: Deploys the pod
+**Create the persistent volume claim**:
 ```bash
-#!/bin/bash
-# Requires TELEGRAM_TOKEN environment variable
+podman play kube pvc.yaml
+```
+
+**Deploy the pod** (requires TELEGRAM_TOKEN):
+```bash
+# Edit pod.yaml to set your TELEGRAM_TOKEN first, or use sed:
+sed -i 's/YOUR_TELEGRAM_TOKEN_HERE/your_actual_token/' pod.yaml
 podman play kube --replace pod.yaml
 ```
 
-**stop.sh**: Stops and removes the pod
+**Check pod status**:
 ```bash
-#!/bin/bash
+podman pod ps --filter name=fuel-bot-pod
+```
+
+**View logs**:
+```bash
+# Bot logs
+podman logs -f fuel-bot-pod-fuel-bot-app
+
+# Database logs
+podman logs -f fuel-bot-pod-fuel-bot-db
+```
+
+**Stop and remove the pod**:
+```bash
 podman pod stop fuel-bot-pod
 podman pod rm fuel-bot-pod
 ```

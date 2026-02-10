@@ -55,8 +55,8 @@ This plan implements containerized deployment for the Telegram fuel expense bot 
     - Verify image contains the telegram-fuel-bot binary
     - _Requirements: 1.3, 1.6, 9.3_
 
-- [ ] 3. Create Podman pod specification (pod.yaml)
-  - [ ] 3.1 Define pod metadata and structure
+- [x] 3. Create Podman pod specification (pod.yaml)
+  - [x] 3.1 Define pod metadata and structure
     - Create Kubernetes-compatible YAML (apiVersion: v1, kind: Pod)
     - Set pod name to fuel-bot-pod
     - Add labels: app=fuel-expense-bot
@@ -64,7 +64,7 @@ This plan implements containerized deployment for the Telegram fuel expense bot 
     - Set terminationGracePeriodSeconds: 30 for graceful shutdown
     - _Requirements: 2.1, 5.3, 9.4_
 
-  - [ ] 3.2 Define MariaDB database container
+  - [x] 3.2 Define MariaDB database container
     - Container name: fuel-bot-db
     - Image: docker.io/library/mariadb:11.2 (specific version tag)
     - Environment variables: MARIADB_ROOT_PASSWORD=root_internal_pass, MARIADB_DATABASE=fuel_expense_bot, MARIADB_USER=fuel_bot, MARIADB_PASSWORD=fuel_bot_internal_pass
@@ -74,7 +74,7 @@ This plan implements containerized deployment for the Telegram fuel expense bot 
     - No ports exposed
     - _Requirements: 2.1, 2.3, 2.5, 2.6, 2.9, 3.2, 4.1, 4.4, 4.5, 9.2_
 
-  - [ ] 3.3 Define bot container
+  - [x] 3.3 Define bot container
     - Container name: fuel-bot-app
     - Image: localhost/fuel-bot:latest
     - Environment variables: TELEGRAM_TOKEN (valueFrom or placeholder), DEFAULT_LIMIT=210.00 (optional), RUST_LOG=telegram_fuel_bot=info (optional)
@@ -84,7 +84,7 @@ This plan implements containerized deployment for the Telegram fuel expense bot 
     - Depends on database (use initContainers or startup probe to ensure database is ready)
     - _Requirements: 2.1, 2.4, 2.7, 2.10, 4.2, 4.4, 4.5, 9.5_
 
-  - [ ] 3.4 Define volumes
+  - [x] 3.4 Define volumes
     - Create PersistentVolumeClaim named fuel-bot-pvc for database data
     - Storage: 512Mi (sufficient for expense tracking data)
     - AccessMode: ReadWriteOnce
@@ -103,102 +103,93 @@ This plan implements containerized deployment for the Telegram fuel expense bot 
     - Verify restartPolicy is configured
     - _Requirements: 2.1, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 4.1, 4.2, 4.4, 4.5, 5.3, 9.4_
 
-- [ ] 4. Create deployment helper script
-  - [ ] 4.1 Create scripts/operations/bot.sh script with multiple commands
-    - Implement "build" command: podman build -t fuel-bot:latest -f Dockerfile .
-    - Implement "deploy" command: podman play kube --replace pod.yaml (check TELEGRAM_TOKEN is set)
-    - Implement "stop" command: podman pod stop fuel-bot-pod && podman pod rm fuel-bot-pod
-    - Implement "logs" command: podman logs -f fuel-bot-pod-fuel-bot-app (with option for database logs)
-    - Implement "status" command: podman pod ps --filter name=fuel-bot-pod
-    - Add usage help when no command or invalid command provided
-    - Add error handling for each command
-    - Make executable (chmod +x)
-    - _Requirements: 1.1, 1.2, 2.1, 5.1, 5.3, 6.1, 6.3, 8.4_
-
-- [ ] 5. Create deployment documentation
-  - [ ] 5.1 Create DEPLOYMENT.md
+- [x] 4. Create deployment documentation
+  - [x] 4.1 Create DEPLOYMENT.md
     - Document prerequisites (Podman installed, bot token from @BotFather)
-    - Document build process: ./scripts/operations/bot.sh build
-    - Document deployment process: TELEGRAM_TOKEN=your_token ./scripts/operations/bot.sh deploy
-    - Document how to check logs: ./scripts/operations/bot.sh logs
-    - Document how to check status: ./scripts/operations/bot.sh status
-    - Document how to stop: ./scripts/operations/bot.sh stop
+    - Document build process: podman build -t fuel-bot:latest -f Dockerfile .
+    - Document PVC creation: podman play kube pvc.yaml
+    - Document deployment process: Edit pod.yaml to set TELEGRAM_TOKEN, then podman play kube --replace pod.yaml
+    - Document how to check logs: podman logs -f fuel-bot-pod-fuel-bot-app
+    - Document how to check status: podman pod ps --filter name=fuel-bot-pod
+    - Document how to stop: podman pod stop fuel-bot-pod && podman pod rm fuel-bot-pod
     - Document optional environment variables (DEFAULT_LIMIT, RUST_LOG)
     - Document troubleshooting common issues (database connection, missing token, volume permissions)
-    - Include example pod.yaml with placeholder for TELEGRAM_TOKEN
+    - Include example showing how to set TELEGRAM_TOKEN in pod.yaml
     - _Requirements: 8.5_
 
-  - [ ] 5.2 Update main README.md
+  - [x] 4.2 Update main README.md
     - Add section on containerized deployment
     - Link to DEPLOYMENT.md for detailed instructions
     - Mention minimal configuration requirement (only TELEGRAM_TOKEN)
-    - Show quick start example: ./scripts/operations/bot.sh build && TELEGRAM_TOKEN=xxx ./scripts/operations/bot.sh deploy
+    - Show quick start example with Podman commands
+    - Document the build, deploy, logs, status, and stop commands
     - _Requirements: 8.5_
 
-- [ ] 6. Checkpoint - Verify deployment works end-to-end
-  - Build the Docker image using ./scripts/operations/bot.sh build
-  - Deploy the pod using TELEGRAM_TOKEN=test_token ./scripts/operations/bot.sh deploy
-  - Check status using ./scripts/operations/bot.sh status
+- [ ] 5. Checkpoint - Verify deployment works end-to-end
+  - Build the Docker image using podman build -t fuel-bot:latest -f Dockerfile .
+  - Create PVC using podman play kube pvc.yaml
+  - Edit pod.yaml to set TELEGRAM_TOKEN
+  - Deploy the pod using podman play kube --replace pod.yaml
+  - Check status using podman pod ps --filter name=fuel-bot-pod
   - Verify both containers start successfully
   - Verify health checks pass
   - Verify bot connects to database
   - Verify database tables are created (config and counts)
   - Test bot responds to Telegram commands
-  - Check logs using ./scripts/operations/bot.sh logs
-  - Stop the pod using ./scripts/operations/bot.sh stop
+  - Check logs using podman logs -f fuel-bot-pod-fuel-bot-app
+  - Stop the pod using podman pod stop fuel-bot-pod && podman pod rm fuel-bot-pod
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ]* 7. Write integration tests (optional)
-  - [ ]* 7.1 Write deployment integration test
+- [ ]* 6. Write integration tests (optional)
+  - [ ]* 6.1 Write deployment integration test
     - Test that pod deploys successfully with valid TELEGRAM_TOKEN
     - Test that both containers start and become healthy
     - Test that bot can connect to database at localhost:3306
     - _Requirements: 2.2, 4.3_
 
-  - [ ]* 7.2 Write database initialization test
+  - [ ]* 6.2 Write database initialization test
     - Deploy fresh pod
     - Verify database tables (config, counts) are created
     - Verify initialization script ran successfully
     - _Requirements: 3.1, 3.3_
 
-  - [ ]* 7.3 Write persistence test
+  - [ ]* 6.3 Write persistence test
     - Deploy pod and insert test data
     - Stop and remove pod
     - Redeploy pod
     - Verify test data persists in database
     - _Requirements: 2.5, 2.6_
 
-  - [ ]* 7.4 Write graceful shutdown test
+  - [ ]* 6.4 Write graceful shutdown test
     - Deploy pod
     - Send SIGTERM to bot container
     - Verify bot logs show graceful shutdown message
     - Verify bot stops within terminationGracePeriodSeconds
     - _Requirements: 5.1, 5.2, 5.3_
 
-  - [ ]* 7.5 Write logging test
+  - [ ]* 6.5 Write logging test
     - Deploy pod
     - Verify bot logs appear in podman logs output
     - Verify logs include timestamps and log levels
     - Test different RUST_LOG values
     - _Requirements: 6.1, 6.2, 6.4_
 
-  - [ ]* 7.6 Write error handling test
+  - [ ]* 6.6 Write error handling test
     - Test deployment without TELEGRAM_TOKEN fails with clear error
     - Test bot fails gracefully when database is unavailable
     - _Requirements: 8.4_
 
-- [ ] 8. Optional: Add resource limits to pod specification
+- [ ] 7. Optional: Add resource limits to pod specification
   - Add resources section to both containers in pod.yaml
   - Set memory limits: database 512Mi, bot 256Mi
   - Set CPU limits: database 1000m, bot 500m
   - Document how to adjust these limits
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-- [ ] 9. Final checkpoint - Complete deployment verification
+- [ ] 8. Final checkpoint - Complete deployment verification
   - Verify all configuration files are correct
   - Verify documentation is complete and accurate
   - Verify deployment works from scratch following documentation
-  - Verify all helper scripts work correctly
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

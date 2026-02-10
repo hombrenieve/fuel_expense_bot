@@ -27,6 +27,67 @@ A Telegram bot to track monthly fuel expenses and enforce spending limits. Built
 
 ---
 
+## Containerized Deployment
+
+Deploy the bot using Podman pods for a production-ready, isolated environment with minimal configuration.
+
+### Why Containerized Deployment?
+
+- **Minimal configuration**: Only requires `TELEGRAM_TOKEN` at runtime
+- **Isolated environment**: Bot and database run in a secure pod
+- **Easy updates**: Rebuild and redeploy without affecting data
+- **Production-ready**: Includes health checks, graceful shutdown, and automatic restart
+
+### Quick Start with Podman
+
+```bash
+# 1. Build the bot container image
+podman build -t fuel-bot:latest -f Dockerfile .
+
+# 2. Create persistent volume for database
+podman play kube pvc.yaml
+
+# 3. Deploy the pod with your bot token
+export TELEGRAM_TOKEN="your_actual_token"
+envsubst < pod.yaml | podman play kube --replace -
+
+# 4. Check status
+podman pod ps --filter name=fuel-bot-pod
+
+# 5. View logs
+podman logs -f fuel-bot-pod-fuel-bot-app
+```
+
+### Management Commands
+
+```bash
+# Check pod status
+podman pod ps --filter name=fuel-bot-pod
+
+# View bot logs
+podman logs -f fuel-bot-pod-fuel-bot-app
+
+# View database logs
+podman logs -f fuel-bot-pod-fuel-bot-db
+
+# Stop the pod
+podman pod stop fuel-bot-pod && podman pod rm fuel-bot-pod
+```
+
+### Configuration
+
+The containerized deployment requires only the `TELEGRAM_TOKEN` environment variable. Database connection settings are pre-configured and copied into the image at build time.
+
+**Optional environment variables** (set in `pod.yaml`):
+- `DEFAULT_LIMIT`: Default monthly spending limit (default: 210.00)
+- `RUST_LOG`: Logging level (default: telegram_fuel_bot=info)
+
+### Detailed Instructions
+
+For complete deployment instructions, troubleshooting, and advanced operations, see the [Deployment Guide](DEPLOYMENT.md).
+
+---
+
 ## Full Setup Guide
 
 For production deployments or custom configurations:
