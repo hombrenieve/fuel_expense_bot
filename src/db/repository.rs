@@ -159,6 +159,81 @@ pub trait RepositoryTrait: Send + Sync {
         amount: Decimal,
         limit: Decimal,
     ) -> Result<ExpenseAddResult>;
+
+    /// Get all expenses for a user in the current month with detailed information
+    ///
+    /// Returns expenses ordered chronologically by date (ascending), with ID descending
+    /// as a tiebreaker for same-day expenses.
+    ///
+    /// # Arguments
+    /// * `username` - The Telegram username
+    ///
+    /// # Returns
+    /// * `Ok(Vec<Expense>)` - Vector of expenses in the current month, ordered chronologically
+    /// * `Err(BotError::Database)` if a database error occurs
+    ///
+    /// # Requirements
+    /// - Validates: Requirements 1.1, 1.5
+    async fn get_current_month_expenses(&self, username: &str) -> Result<Vec<Expense>>;
+
+    /// Delete all expenses for a user in the current month
+    ///
+    /// # Arguments
+    /// * `username` - The Telegram username
+    ///
+    /// # Returns
+    /// * `Ok(u64)` - The number of expenses deleted
+    /// * `Err(BotError::Database)` if a database error occurs
+    ///
+    /// # Requirements
+    /// - Validates: Requirements 3.1, 3.2
+    async fn delete_current_month_expenses(&self, username: &str) -> Result<u64>;
+
+    /// Delete the most recent expense for a user in the current month
+    ///
+    /// Identifies the most recent expense by date (descending), with ID as tiebreaker
+    /// for same-day expenses.
+    ///
+    /// # Arguments
+    /// * `username` - The Telegram username
+    ///
+    /// # Returns
+    /// * `Ok(Some(Expense))` - The deleted expense if one existed
+    /// * `Ok(None)` - If no expenses exist in the current month
+    /// * `Err(BotError::Database)` if a database error occurs
+    ///
+    /// # Requirements
+    /// - Validates: Requirements 4.1, 4.2, 4.4
+    async fn delete_last_current_month_expense(&self, username: &str) -> Result<Option<Expense>>;
+
+    /// Get monthly totals for the entire current year
+    ///
+    /// Returns a vector of (month, total) tuples for months with expenses.
+    /// Months with no expenses are omitted from results.
+    ///
+    /// # Arguments
+    /// * `username` - The Telegram username
+    /// * `year` - The year to summarize
+    ///
+    /// # Returns
+    /// * `Ok(Vec<(u32, Decimal)>)` - Vector of (month_number, total) tuples ordered by month
+    /// * `Err(BotError::Database)` if a database error occurs
+    ///
+    /// # Requirements
+    /// - Validates: Requirements 2.1, 2.4
+    async fn get_year_summary(&self, username: &str, year: i32) -> Result<Vec<(u32, Decimal)>>;
+
+    /// Get all active chat IDs for startup notifications
+    ///
+    /// Returns a list of unique chat IDs from the config table.
+    ///
+    /// # Returns
+    /// * `Ok(Vec<i64>)` - Vector of unique chat IDs
+    /// * `Err(BotError::Database)` if a database error occurs
+    ///
+    /// # Requirements
+    /// - Validates: Requirement 6.1
+    async fn get_all_chat_ids(&self) -> Result<Vec<i64>>;
 }
 
 /// Real database repository implementation
@@ -356,6 +431,100 @@ impl RepositoryTrait for Repository {
 
             Ok(ExpenseAddResult::Created(result.last_insert_id() as i64))
         }
+    }
+
+    async fn get_current_month_expenses(&self, username: &str) -> Result<Vec<Expense>> {
+        use chrono::Local;
+
+        let now = Local::now().date_naive();
+        let year = now.year();
+        let month = now.month();
+
+        let expenses = sqlx::query_as::<_, Expense>(
+            "SELECT id, txDate, username, quantity FROM counts 
+             WHERE username = ? AND YEAR(txDate) = ? AND MONTH(txDate) = ? 
+             ORDER BY txDate ASC, id DESC"
+        )
+        .bind(username)
+        .bind(year)
+        .bind(month)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(expenses)
+    }
+
+    async fn delete_current_month_expenses(&self, username: &str) -> Result<u64> {
+        use chrono::Local;
+
+        let now = Local::now().date_naive();
+        let year = now.year();
+        let month = now.month();
+
+        let result = sqlx::query(
+            "DELETE FROM counts WHERE username = ? AND YEAR(txDate) = ? AND MONTH(txDate) = ?"
+        )
+        .bind(username)
+        .bind(year)
+        .bind(month)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected())
+    }
+
+    async fn delete_last_current_month_expense(&self, username: &str) -> Result<Option<Expense>> {
+        use chrono::Local;
+
+        let now = Local::now().date_naive();
+        let year = now.year();
+        let month = now.month();
+
+        // First, find the most recent expense
+        let expense = sqlx::query_as::<_, Expense>(
+            "SELECT id, txDate, username, quantity FROM counts 
+             WHERE username = ? AND YEAR(txDate) = ? AND MONTH(txDate) = ? 
+             ORDER BY txDate DESC, id DESC LIMIT 1"
+        )
+        .bind(username)
+        .bind(year)
+        .bind(month)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        // If found, delete it
+        if let Some(ref exp) = expense {
+            sqlx::query("DELETE FROM counts WHERE id = ?")
+                .bind(exp.id)
+                .execute(&self.pool)
+                .await?;
+        }
+
+        Ok(expense)
+    }
+
+    async fn get_year_summary(&self, username: &str, year: i32) -> Result<Vec<(u32, Decimal)>> {
+        let results: Vec<(u32, Decimal)> = sqlx::query_as(
+            "SELECT MONTH(txDate) as month, SUM(quantity) as total 
+             FROM counts 
+             WHERE username = ? AND YEAR(txDate) = ? 
+             GROUP BY MONTH(txDate) 
+             ORDER BY month ASC"
+        )
+        .bind(username)
+        .bind(year)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(results)
+    }
+
+    async fn get_all_chat_ids(&self) -> Result<Vec<i64>> {
+        let chat_ids: Vec<(i64,)> = sqlx::query_as("SELECT DISTINCT chatId FROM config")
+            .fetch_all(&self.pool)
+            .await?;
+
+        Ok(chat_ids.into_iter().map(|(id,)| id).collect())
     }
 }
 
@@ -600,6 +769,127 @@ pub mod mock {
                 let id = self.create_expense(username, date, amount).await?;
                 Ok(ExpenseAddResult::Created(id))
             }
+        }
+
+        async fn get_current_month_expenses(&self, username: &str) -> Result<Vec<Expense>> {
+            use chrono::Local;
+
+            let now = Local::now().date_naive();
+            let year = now.year();
+            let month = now.month();
+
+            let expenses = self.expenses.lock().unwrap();
+            let mut result: Vec<Expense> = expenses
+                .iter()
+                .filter(|e| {
+                    e.username == username
+                        && e.tx_date.year() == year
+                        && e.tx_date.month() == month
+                })
+                .cloned()
+                .collect();
+
+            // Sort by date ascending, then by ID descending
+            result.sort_by(|a, b| {
+                a.tx_date
+                    .cmp(&b.tx_date)
+                    .then_with(|| b.id.cmp(&a.id))
+            });
+
+            Ok(result)
+        }
+
+        async fn delete_current_month_expenses(&self, username: &str) -> Result<u64> {
+            use chrono::Local;
+
+            let now = Local::now().date_naive();
+            let year = now.year();
+            let month = now.month();
+
+            let mut expenses = self.expenses.lock().unwrap();
+            let initial_len = expenses.len();
+
+            expenses.retain(|e| {
+                !(e.username == username
+                    && e.tx_date.year() == year
+                    && e.tx_date.month() == month)
+            });
+
+            let deleted_count = (initial_len - expenses.len()) as u64;
+            Ok(deleted_count)
+        }
+
+        async fn delete_last_current_month_expense(&self, username: &str) -> Result<Option<Expense>> {
+            use chrono::Local;
+
+            let now = Local::now().date_naive();
+            let year = now.year();
+            let month = now.month();
+
+            let mut expenses = self.expenses.lock().unwrap();
+
+            // Find the most recent expense in the current month
+            let mut current_month_expenses: Vec<&Expense> = expenses
+                .iter()
+                .filter(|e| {
+                    e.username == username
+                        && e.tx_date.year() == year
+                        && e.tx_date.month() == month
+                })
+                .collect();
+
+            // Sort by date descending, then by ID descending
+            current_month_expenses.sort_by(|a, b| {
+                b.tx_date
+                    .cmp(&a.tx_date)
+                    .then_with(|| b.id.cmp(&a.id))
+            });
+
+            // Get the first one (most recent)
+            if let Some(most_recent) = current_month_expenses.first() {
+                let expense_to_delete = (*most_recent).clone();
+                let id_to_delete = expense_to_delete.id;
+
+                // Remove it from the expenses vector
+                expenses.retain(|e| e.id != id_to_delete);
+
+                Ok(Some(expense_to_delete))
+            } else {
+                Ok(None)
+            }
+        }
+
+        async fn get_year_summary(&self, username: &str, year: i32) -> Result<Vec<(u32, Decimal)>> {
+            use std::collections::HashMap;
+
+            let expenses = self.expenses.lock().unwrap();
+
+            // Group expenses by month and sum them
+            let mut monthly_totals: HashMap<u32, Decimal> = HashMap::new();
+
+            for expense in expenses.iter() {
+                if expense.username == username && expense.tx_date.year() == year {
+                    let month = expense.tx_date.month();
+                    *monthly_totals.entry(month).or_insert(Decimal::ZERO) += expense.quantity;
+                }
+            }
+
+            // Convert to vector and sort by month
+            let mut result: Vec<(u32, Decimal)> = monthly_totals.into_iter().collect();
+            result.sort_by_key(|(month, _)| *month);
+
+            Ok(result)
+        }
+
+        async fn get_all_chat_ids(&self) -> Result<Vec<i64>> {
+            let users = self.users.lock().unwrap();
+            let mut chat_ids: Vec<i64> = users.values().map(|u| u.chat_id).collect();
+            
+            // Remove duplicates and sort for consistency
+            chat_ids.sort_unstable();
+            chat_ids.dedup();
+
+            Ok(chat_ids)
         }
     }
 }

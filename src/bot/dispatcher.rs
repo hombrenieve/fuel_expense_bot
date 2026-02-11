@@ -13,7 +13,10 @@ use teloxide::{
 };
 use tracing::{error, info};
 
-use crate::bot::handlers::{handle_check, handle_config, handle_numeric_input, handle_start};
+use crate::bot::handlers::{
+    handle_check, handle_clear_month, handle_config, handle_list_month, handle_numeric_input,
+    handle_remove_last, handle_start, handle_year_summary,
+};
 use crate::services::{expense_service::ExpenseService, user_service::UserService};
 
 /// Bot commands enum for teloxide command parsing
@@ -29,6 +32,14 @@ enum Command {
     Check,
     #[command(description = "Configure your monthly limit (usage: /config limit <amount>)")]
     Config(String),
+    #[command(description = "List all expenses for the current month")]
+    ListMonth,
+    #[command(description = "Show year summary with monthly totals")]
+    YearSummary,
+    #[command(description = "Clear all expenses from the current month")]
+    ClearMonth,
+    #[command(description = "Remove the last expense from the current month")]
+    RemoveLast,
 }
 
 /// Set up and run the bot dispatcher
@@ -122,6 +133,42 @@ async fn command_handler(
             let args: Vec<String> = args_str.split_whitespace().map(|s| s.to_string()).collect();
             if let Err(e) = handle_config(bot, msg, user_service, args).await {
                 error!("Error handling /config command: {:?}", e);
+            }
+        }
+        Command::ListMonth => {
+            info!(
+                "Received /list_month command from user: {}, chat_id: {}",
+                username, chat_id
+            );
+            if let Err(e) = handle_list_month(bot, msg, expense_service).await {
+                error!("Error handling /list_month command: {:?}", e);
+            }
+        }
+        Command::YearSummary => {
+            info!(
+                "Received /year_summary command from user: {}, chat_id: {}",
+                username, chat_id
+            );
+            if let Err(e) = handle_year_summary(bot, msg, expense_service).await {
+                error!("Error handling /year_summary command: {:?}", e);
+            }
+        }
+        Command::ClearMonth => {
+            info!(
+                "Received /clear_month command from user: {}, chat_id: {}",
+                username, chat_id
+            );
+            if let Err(e) = handle_clear_month(bot, msg, expense_service).await {
+                error!("Error handling /clear_month command: {:?}", e);
+            }
+        }
+        Command::RemoveLast => {
+            info!(
+                "Received /remove_last command from user: {}, chat_id: {}",
+                username, chat_id
+            );
+            if let Err(e) = handle_remove_last(bot, msg, expense_service).await {
+                error!("Error handling /remove_last command: {:?}", e);
             }
         }
     }

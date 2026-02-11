@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc b62e96849791d3d70288d09b4944d7a36fca2c82d320eb98a12cd87410176dd3 # shrinks to current_month_expenses = [(2026-02-23, 0.01), (2026-02-23, 0.01)], other_month_expenses = []

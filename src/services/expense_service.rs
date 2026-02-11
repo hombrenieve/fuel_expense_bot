@@ -24,6 +24,128 @@ impl ExpenseService {
         Self { repo }
     }
 
+    /// Get detailed list of current month's expenses
+    ///
+    /// Returns expenses with day information for display, ordered chronologically.
+    ///
+    /// # Arguments
+    /// * `username` - The Telegram username
+    ///
+    /// # Returns
+    /// * `Ok(Vec<ExpenseDetail>)` - Vector of expense details, empty if no expenses
+    /// * `Err(BotError::Database)` if a database error occurs
+    ///
+    /// # Requirements
+    /// - Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5
+    pub async fn list_current_month_expenses(&self, username: &str) -> Result<Vec<ExpenseDetail>> {
+        // Get all expenses for the current month from repository
+        let expenses = self.repo.get_current_month_expenses(username).await?;
+
+        // Transform Expense models to ExpenseDetail with day extraction
+        let details = expenses
+            .into_iter()
+            .map(|expense| ExpenseDetail {
+                day: expense.tx_date.day(),
+                amount: expense.quantity,
+                date: expense.tx_date,
+            })
+            .collect();
+
+        Ok(details)
+    }
+
+    /// Clear all expenses from the current month
+    ///
+    /// Removes all expenses for the user in the current month and returns
+    /// the count of deleted expenses.
+    ///
+    /// # Arguments
+    /// * `username` - The Telegram username
+    ///
+    /// # Returns
+    /// * `Ok(u64)` - The number of expenses deleted (0 if month was empty)
+    /// * `Err(BotError::Database)` if a database error occurs
+    ///
+    /// # Requirements
+    /// - Validates: Requirements 3.1, 3.2, 3.3, 3.4
+    pub async fn clear_current_month(&self, username: &str) -> Result<u64> {
+        // Call repository to delete all current month expenses
+        let deleted_count = self.repo.delete_current_month_expenses(username).await?;
+
+        Ok(deleted_count)
+    }
+
+    /// Remove the last (most recent) expense from the current month
+    ///
+    /// Identifies and removes the most recent expense in the current month.
+    /// Returns the deleted expense details if one existed.
+    ///
+    /// # Arguments
+    /// * `username` - The Telegram username
+    ///
+    /// # Returns
+    /// * `Ok(Some(ExpenseDetail))` - The deleted expense details if one existed
+    /// * `Ok(None)` - If no expenses exist in the current month
+    /// * `Err(BotError::Database)` if a database error occurs
+    ///
+    /// # Requirements
+    /// - Validates: Requirements 4.1, 4.2, 4.3, 4.4, 5.3
+    pub async fn remove_last_expense(&self, username: &str) -> Result<Option<ExpenseDetail>> {
+        // Call repository to delete the last current month expense
+        let deleted_expense = self.repo.delete_last_current_month_expense(username).await?;
+
+        // Transform to ExpenseDetail if an expense was deleted
+        let result = deleted_expense.map(|expense| ExpenseDetail {
+            day: expense.tx_date.day(),
+            amount: expense.quantity,
+            date: expense.tx_date,
+        });
+
+        Ok(result)
+    }
+
+    /// Get summary of expenses for the entire current year
+    ///
+    /// Returns monthly totals with month names and a grand total for the year.
+    ///
+    /// # Arguments
+    /// * `username` - The Telegram username
+    ///
+    /// # Returns
+    /// * `Ok(YearSummary)` - Summary with monthly totals and grand total
+    /// * `Err(BotError::Database)` if a database error occurs
+    ///
+    /// # Requirements
+    /// - Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5
+    pub async fn get_year_summary(&self, username: &str) -> Result<YearSummary> {
+        // Get current year
+        let today = current_date();
+        let year = today.year();
+
+        // Get monthly totals from repository
+        let monthly_data = self.repo.get_year_summary(username, year).await?;
+
+        // Transform month numbers to month names and calculate grand total
+        let mut grand_total = Decimal::ZERO;
+        let monthly_totals = monthly_data
+            .into_iter()
+            .map(|(month, total)| {
+                grand_total += total;
+                MonthTotal {
+                    month,
+                    month_name: month_number_to_name(month),
+                    total,
+                }
+            })
+            .collect();
+
+        Ok(YearSummary {
+            year,
+            monthly_totals,
+            grand_total,
+        })
+    }
+
     /// Add an expense for the current date
     ///
     /// This function:
@@ -183,6 +305,71 @@ impl ExpenseService {
             remaining,
         })
     }
+}
+
+/// Convert month number (1-12) to month name
+///
+/// # Arguments
+/// * `month` - Month number (1-12)
+///
+/// # Returns
+/// * Month name as a string (e.g., "January", "February", etc.)
+fn month_number_to_name(month: u32) -> String {
+    match month {
+        1 => "January",
+        2 => "February",
+        3 => "March",
+        4 => "April",
+        5 => "May",
+        6 => "June",
+        7 => "July",
+        8 => "August",
+        9 => "September",
+        10 => "October",
+        11 => "November",
+        12 => "December",
+        _ => "Unknown",
+    }
+    .to_string()
+}
+
+/// Detailed information about a single expense
+///
+/// This struct provides day-level detail for expense display.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExpenseDetail {
+    /// Day of month (1-31)
+    pub day: u32,
+    /// Expense amount
+    pub amount: Decimal,
+    /// Full date for reference
+    pub date: NaiveDate,
+}
+
+/// Summary of expenses for an entire year
+///
+/// This struct aggregates monthly totals and provides a grand total.
+#[derive(Debug, Clone, PartialEq)]
+pub struct YearSummary {
+    /// The year being summarized
+    pub year: i32,
+    /// Monthly totals for months with expenses
+    pub monthly_totals: Vec<MonthTotal>,
+    /// Grand total for the entire year
+    pub grand_total: Decimal,
+}
+
+/// Total expenses for a single month
+///
+/// This struct represents the aggregated expenses for one month.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MonthTotal {
+    /// Month number (1-12)
+    pub month: u32,
+    /// Month name for display (e.g., "January")
+    pub month_name: String,
+    /// Total expenses for the month
+    pub total: Decimal,
 }
 
 /// Result of adding an expense

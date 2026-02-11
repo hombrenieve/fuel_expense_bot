@@ -230,6 +230,185 @@ pub async fn handle_numeric_input(
     Ok(())
 }
 
+/// Handle /list_month command
+///
+/// Extracts the username from the message, calls expense_service.list_current_month_expenses,
+/// and formats a response showing all expenses in the current month with day and amount.
+///
+/// # Requirements
+/// - Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5
+pub async fn handle_list_month(
+    bot: Bot,
+    msg: Message,
+    expense_service: Arc<ExpenseService>,
+) -> Result<()> {
+    // Extract username from the message
+    let username = msg
+        .from()
+        .and_then(|user| user.username.as_ref())
+        .ok_or_else(|| BotError::InvalidInput("No username found".to_string()))?;
+
+    // Get the current month's expenses
+    match expense_service.list_current_month_expenses(username).await {
+        Ok(expenses) => {
+            if expenses.is_empty() {
+                // Handle empty month case
+                let response = "📋 Current Month Expenses\n\nNo expenses recorded this month.";
+                bot.send_message(msg.chat.id, response).await?;
+            } else {
+                // Format response with day and amount for each expense
+                let mut response = String::from("📋 Current Month Expenses\n\n");
+                for expense in expenses {
+                    response.push_str(&format!("Day {}: €{:.2}\n", expense.day, expense.amount));
+                }
+                bot.send_message(msg.chat.id, response).await?;
+            }
+        }
+        Err(e) => {
+            let error_msg = format_error_message(&e);
+            bot.send_message(msg.chat.id, error_msg).await?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Handle /year_summary command
+///
+/// Extracts the username from the message, calls expense_service.get_year_summary,
+/// and formats a response showing monthly totals and grand total for the current year.
+///
+/// # Requirements
+/// - Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5
+pub async fn handle_year_summary(
+    bot: Bot,
+    msg: Message,
+    expense_service: Arc<ExpenseService>,
+) -> Result<()> {
+    // Extract username from the message
+    let username = msg
+        .from()
+        .and_then(|user| user.username.as_ref())
+        .ok_or_else(|| BotError::InvalidInput("No username found".to_string()))?;
+
+    // Get the year summary
+    match expense_service.get_year_summary(username).await {
+        Ok(summary) => {
+            if summary.monthly_totals.is_empty() {
+                // Handle empty year case
+                let response = format!(
+                    "📊 Year Summary {}\n\nNo expenses recorded this year.",
+                    summary.year
+                );
+                bot.send_message(msg.chat.id, response).await?;
+            } else {
+                // Format response with month names, totals, and grand total
+                let mut response = format!("📊 Year Summary {}\n\n", summary.year);
+                for month_total in summary.monthly_totals {
+                    response.push_str(&format!(
+                        "{}: €{:.2}\n",
+                        month_total.month_name, month_total.total
+                    ));
+                }
+                response.push_str(&format!("\n💰 Grand Total: €{:.2}", summary.grand_total));
+                bot.send_message(msg.chat.id, response).await?;
+            }
+        }
+        Err(e) => {
+            let error_msg = format_error_message(&e);
+            bot.send_message(msg.chat.id, error_msg).await?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Handle /clear_month command
+///
+/// Extracts the username from the message, calls expense_service.clear_current_month,
+/// and formats a confirmation message with the count of deleted expenses.
+///
+/// # Requirements
+/// - Validates: Requirements 3.1, 3.2, 3.3, 3.4
+pub async fn handle_clear_month(
+    bot: Bot,
+    msg: Message,
+    expense_service: Arc<ExpenseService>,
+) -> Result<()> {
+    // Extract username from the message
+    let username = msg
+        .from()
+        .and_then(|user| user.username.as_ref())
+        .ok_or_else(|| BotError::InvalidInput("No username found".to_string()))?;
+
+    // Clear current month expenses
+    match expense_service.clear_current_month(username).await {
+        Ok(deleted_count) => {
+            if deleted_count == 0 {
+                // Handle empty month case
+                let response = "🗑️ Clear Month\n\nNo expenses to clear this month.";
+                bot.send_message(msg.chat.id, response).await?;
+            } else {
+                // Format confirmation message with count
+                let response = format!(
+                    "✅ Month Cleared\n\n{} expense{} removed from current month.",
+                    deleted_count,
+                    if deleted_count == 1 { "" } else { "s" }
+                );
+                bot.send_message(msg.chat.id, response).await?;
+            }
+        }
+        Err(e) => {
+            let error_msg = format_error_message(&e);
+            bot.send_message(msg.chat.id, error_msg).await?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Handle /remove_last command
+///
+/// Extracts the username from the message, calls expense_service.remove_last_expense,
+/// and formats a confirmation message with the deleted expense details.
+///
+/// # Requirements
+/// - Validates: Requirements 4.1, 4.2, 4.3, 4.4, 5.3
+pub async fn handle_remove_last(
+    bot: Bot,
+    msg: Message,
+    expense_service: Arc<ExpenseService>,
+) -> Result<()> {
+    // Extract username from the message
+    let username = msg
+        .from()
+        .and_then(|user| user.username.as_ref())
+        .ok_or_else(|| BotError::InvalidInput("No username found".to_string()))?;
+
+    // Remove last expense
+    match expense_service.remove_last_expense(username).await {
+        Ok(Some(expense)) => {
+            // Format confirmation message with deleted expense details
+            let response = format!(
+                "✅ Last Expense Removed\n\nDay {}: €{:.2}",
+                expense.day, expense.amount
+            );
+            bot.send_message(msg.chat.id, response).await?;
+        }
+        Ok(None) => {
+            // Handle empty month case
+            let response = "🗑️ Remove Last Expense\n\nNo expenses to remove this month.";
+            bot.send_message(msg.chat.id, response).await?;
+        }
+        Err(e) => {
+            let error_msg = format_error_message(&e);
+            bot.send_message(msg.chat.id, error_msg).await?;
+        }
+    }
+
+    Ok(())
+}
+
 /// Format error messages in a user-friendly way
 ///
 /// This function converts internal error types into user-friendly messages
