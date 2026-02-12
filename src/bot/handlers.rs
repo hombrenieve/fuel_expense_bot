@@ -35,9 +35,14 @@ pub async fn handle_start(bot: Bot, msg: Message, user_service: Arc<UserService>
                 "Welcome, {}! 🚗\n\n\
                 You've been successfully registered.\n\
                 Your default monthly fuel limit is €210.00.\n\n\
-                Send me a number to record a fuel expense.\n\
-                Use /check to see your monthly summary.\n\
-                Use /config limit <amount> to change your monthly limit.",
+                📝 Commands:\n\
+                • Send a number to record a fuel expense\n\
+                • /check - See your monthly summary\n\
+                • /list_month - List all expenses this month\n\
+                • /year_summary - View yearly expense summary\n\
+                • /remove_last - Remove the last expense\n\
+                • /clear_month - Clear all expenses this month\n\
+                • /config limit <amount> - Change your monthly limit",
                 username
             );
             bot.send_message(msg.chat.id, response).await?;
@@ -45,8 +50,15 @@ pub async fn handle_start(bot: Bot, msg: Message, user_service: Arc<UserService>
         Ok(RegistrationResult::AlreadyRegistered) => {
             let response = format!(
                 "Welcome back, {}! 👋\n\n\
-                You're already registered.\n\
-                Send me a number to record a fuel expense or use /check to see your summary.",
+                You're already registered.\n\n\
+                📝 Commands:\n\
+                • Send a number to record a fuel expense\n\
+                • /check - See your monthly summary\n\
+                • /list_month - List all expenses this month\n\
+                • /year_summary - View yearly expense summary\n\
+                • /remove_last - Remove the last expense\n\
+                • /clear_month - Clear all expenses this month\n\
+                • /config limit <amount> - Change your monthly limit",
                 username
             );
             bot.send_message(msg.chat.id, response).await?;

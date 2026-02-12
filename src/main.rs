@@ -95,6 +95,14 @@ async fn main() {
     let bot = Bot::new(&config.telegram_token);
     info!("Telegram bot initialized");
 
+    // Register bot commands with Telegram
+    if let Err(e) = bot::dispatcher::set_bot_commands(&bot).await {
+        error!("Failed to set bot commands: {}", e);
+        // Continue anyway - commands will still work, just won't show in menu
+    } else {
+        info!("Bot commands registered with Telegram");
+    }
+
     // Set up graceful shutdown handler
     // The dispatcher will handle SIGTERM and SIGINT via enable_ctrlc_handler()
     info!("Starting bot dispatcher with graceful shutdown support...");

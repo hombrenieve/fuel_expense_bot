@@ -9,7 +9,7 @@ spec:
   terminationGracePeriodSeconds: 30
   containers:
     - name: fuel-bot-db
-      image: docker.io/library/mariadb:12.2
+      image: docker.io/library/mariadb:12.1
       env:
         - name: MARIADB_ROOT_PASSWORD
           value: root_internal_pass

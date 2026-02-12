@@ -18,11 +18,12 @@ use crate::bot::handlers::{
     handle_remove_last, handle_start, handle_year_summary,
 };
 use crate::services::{expense_service::ExpenseService, user_service::UserService};
+use crate::utils::error::Result;
 
 /// Bot commands enum for teloxide command parsing
 #[derive(BotCommands, Clone)]
 #[command(
-    rename_rule = "lowercase",
+    rename_rule = "snake_case",
     description = "Fuel expense tracking commands:"
 )]
 enum Command {
@@ -40,6 +41,15 @@ enum Command {
     ClearMonth,
     #[command(description = "Remove the last expense from the current month")]
     RemoveLast,
+}
+
+/// Set bot commands with Telegram API
+///
+/// This function registers the available commands with Telegram so they appear
+/// in the command menu when users type '/' in the chat.
+pub async fn set_bot_commands(bot: &Bot) -> Result<()> {
+    bot.set_my_commands(Command::bot_commands()).await?;
+    Ok(())
 }
 
 /// Set up and run the bot dispatcher
@@ -76,6 +86,10 @@ pub async fn run_dispatcher(
                         .map(|amount| amount)
                 })
                 .endpoint(numeric_handler),
+        )
+        .branch(
+            dptree::entry()
+                .endpoint(unhandled_message_handler),
         );
 
     Dispatcher::builder(bot, handler)
@@ -104,6 +118,11 @@ async fn command_handler(
         .unwrap_or("unknown");
 
     let chat_id = msg.chat.id.0;
+    
+    // Log the raw message text for debugging
+    if let Some(text) = msg.text() {
+        info!("Raw message text: '{}'", text);
+    }
 
     match &cmd {
         Command::Start => {
@@ -199,6 +218,26 @@ async fn numeric_handler(
 
     if let Err(e) = handle_numeric_input(bot, msg, expense_service, amount).await {
         error!("Error handling numeric input: {:?}", e);
+    }
+
+    Ok(())
+}
+
+/// Handler for unhandled messages (for debugging)
+async fn unhandled_message_handler(bot: Bot, msg: Message) -> ResponseResult<()> {
+    let username = msg
+        .from()
+        .and_then(|user| user.username.as_ref())
+        .map(|s| s.as_str())
+        .unwrap_or("unknown");
+
+    let chat_id = msg.chat.id.0;
+    
+    if let Some(text) = msg.text() {
+        info!(
+            "Unhandled message from user: {}, chat_id: {}, text: '{}'",
+            username, chat_id, text
+        );
     }
 
     Ok(())
