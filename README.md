@@ -38,21 +38,42 @@ Choose your deployment method:
 
 ```bash
 # 1. Build the bot container image
-podman build -t fuel-bot:latest -f Dockerfile .
+./scripts/build-image.sh
 
 # 2. Create persistent volume for database
 podman play kube pvc.yaml
 
 # 3. Deploy the pod with your bot token
-export TELEGRAM_TOKEN="your_actual_token"
-envsubst < pod.yaml | podman play kube --replace -
-
-# 4. Check status
-podman pod ps --filter name=fuel-bot-pod
-
-# 5. View logs
-podman logs -f fuel-bot-pod-fuel-bot-app
+./scripts/start-pod.sh
 ```
+
+### Helper Scripts
+
+The project includes convenient scripts for common operations:
+
+- **`./scripts/build-image.sh`** - Build the Docker image
+- **`./scripts/start-pod.sh`** - Start the pod (requires TELEGRAM_TOKEN in .env)
+- **`./scripts/restart-pod.sh`** - Restart the pod (useful after config changes)
+- **`./scripts/rebuild-and-restart.sh`** - Build image and restart pod in one command
+
+**Typical workflow after code changes:**
+```bash
+./scripts/rebuild-and-restart.sh
+```
+
+### Services Included
+
+The pod includes three containers:
+- **Telegram Bot** - The main application
+- **MariaDB** - Database (internal to pod only, not exposed)
+- **Adminer** - Web-based database management UI at http://localhost:8080
+
+**Adminer Access:**
+- URL: http://localhost:8080
+- Server: 127.0.0.1
+- Username: fuel_bot
+- Password: fuel_bot_internal_pass
+- Database: fuel_expense_bot
 
 ### Why Containerized?
 
@@ -66,12 +87,22 @@ podman logs -f fuel-bot-pod-fuel-bot-app
 ```bash
 # Check status
 podman pod ps --filter name=fuel-bot-pod
+podman ps --filter pod=fuel-bot-pod
 
 # View logs
 podman logs -f fuel-bot-pod-fuel-bot-app
 
+# Restart the pod
+./scripts/restart-pod.sh
+
+# Rebuild and restart after code changes
+./scripts/rebuild-and-restart.sh
+
 # Stop the pod
 podman pod stop fuel-bot-pod && podman pod rm fuel-bot-pod
+
+# Access database UI
+# Open http://localhost:8080 in your browser
 ```
 
 **For detailed instructions, troubleshooting, and advanced operations, see the [Deployment Guide](DEPLOYMENT.md).**
