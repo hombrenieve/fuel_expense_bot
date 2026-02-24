@@ -19,15 +19,15 @@ fi
 echo "Starting fuel bot pod..."
 echo "Using TELEGRAM_TOKEN: ${TELEGRAM_TOKEN:0:10}..."
 
-# Substitute environment variables and start the pod
-envsubst < pod.yaml | podman play kube -
+# Substitute environment variables and start the pod (includes ConfigMap)
+envsubst < pod-with-configmap.yaml | podman play kube -
 
 echo ""
 echo "✓ Pod started successfully"
 echo ""
 echo "Services running:"
 echo "  • Telegram Bot: fuel-bot-pod-fuel-bot-app"
-echo "  • MariaDB: fuel-bot-pod-fuel-bot-db (port 3306)"
+echo "  • MariaDB: fuel-bot-pod-fuel-bot-db (internal only)"
 echo "  • Adminer UI: http://localhost:8080"
 echo ""
 echo "Check status with:"

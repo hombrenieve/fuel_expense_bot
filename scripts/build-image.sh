@@ -3,11 +3,45 @@
 
 set -e
 
-echo "🔨 Building fuel-bot Docker image..."
-echo ""
+CLEAN_BUILD=false
 
-# Build the image
-podman build -t fuel-bot:latest .
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --clean)
+      CLEAN_BUILD=true
+      shift
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "Usage: $0 [--clean]"
+      echo ""
+      echo "Options:"
+      echo "  --clean    Force a clean rebuild without cache"
+      exit 1
+      ;;
+  esac
+done
+
+if [ "$CLEAN_BUILD" = true ]; then
+  echo "🧹 Clean build mode enabled"
+  echo ""
+  
+  # Clean local artifacts
+  if [ -d "target" ]; then
+    echo "Removing local target/ directory..."
+    rm -rf target
+    echo "✓ Local build cache cleared"
+    echo ""
+  fi
+  
+  echo "🔨 Building image with --no-cache..."
+  podman build --no-cache -t fuel-bot:latest .
+else
+  echo "🔨 Building fuel-bot Docker image..."
+  echo ""
+  podman build -t fuel-bot:latest .
+fi
 
 if [ $? -eq 0 ]; then
   echo ""
