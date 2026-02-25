@@ -44,14 +44,6 @@ spec:
           value: "210.00"
         - name: RUST_LOG
           value: telegram_fuel_bot=info
-      startupProbe:
-        tcpSocket:
-          port: 3306
-          host: localhost
-        initialDelaySeconds: 20
-        periodSeconds: 5
-        timeoutSeconds: 3
-        failureThreshold: 30
     # Adminer - Database management UI
     # Access at http://localhost:8080
     # Login: Server=127.0.0.1, Username=fuel_bot, Password=fuel_bot_internal_pass, Database=fuel_expense_bot
