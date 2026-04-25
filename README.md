@@ -1,5 +1,13 @@
 # Fuel Expense Bot
 
+> [!WARNING]
+> ### ⚠️ This repository has moved to Codeberg
+> **Development, issues, and releases are now located at:**
+> **[https://codeberg.org/hombrenieve/fuel_expense_bot](https://codeberg.org/hombrenieve/fuel_expense_bot)**
+>
+> Please update your local remotes using:
+> `git remote set-url origin https://codeberg.org/hombrenieve/fuel_expense_bot.git`
+
 A Telegram bot to track monthly fuel expenses and enforce spending limits. Built with Rust for reliability, type safety, and performance.
 
 ## Documentation
